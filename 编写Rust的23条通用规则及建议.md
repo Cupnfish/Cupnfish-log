@@ -1,14 +1,13 @@
-# 编写Rust的23条通用规则及建议
-
+[原文](https://seed-rs.org/0.8.0/rust/)
 1. Rust的编译器是你的朋友。
 
-2. 给你的代码编写[Document ](https://doc.rust-lang.org/book/ch14-02-publishing-to-crates-io.html#making-useful-documentation-comments)，写出富有表现力的名字、可读性高的文档；最好可以再注释里测试你的代码片段。
+2. 给你的代码编写[Document ](https://doc.rust-lang.org/book/ch14-02-publishing-to-crates-io.html#making-useful-documentation-comments)，写出富有表现力的名字、可读性高的文档；最好可以在注释里测试你的代码片段。
 
 3. 了解在哪里使用 [Result](https://doc.rust-lang.org/std/result/)，在哪里使用[panic](https://doc.rust-lang.org/book/ch09-03-to-panic-or-not-to-panic.html#to-panic-or-not-to-panic)。
 
 4. 尊重[命名约定(naming conventions)](https://rust-lang.github.io/api-guidelines/naming.html)。
 
-5. 了解这些著名的对子：
+5. 了解这些著名的关系对：
 
    - [From ](https://doc.rust-lang.org/std/convert/trait.From.html)和 [Into ](https://doc.rust-lang.org/std/convert/trait.Into.html)+ [TryFrom ](https://doc.rust-lang.org/std/convert/trait.TryFrom.html)和 [TryInto](https://doc.rust-lang.org/std/convert/trait.TryInto.html)
    - [String](https://doc.rust-lang.org/std/string/struct.String.html) 和 [str](https://doc.rust-lang.org/std/primitive.str.html)
@@ -25,16 +24,16 @@
 
 8. 尽可能的使用[引用](https://doc.rust-lang.org/std/primitive.reference.html)，比如在使用[String](https://doc.rust-lang.org/std/string/struct.String.html)的地方可以用[&str](https://doc.rust-lang.org/std/primitive.str.html)代替；在使用[Vec](https://doc.rust-lang.org/std/vec/struct.Vec.html)的地方可以用[&[T]](https://doc.rust-lang.org/std/primitive.slice.html)来代替。
 
-9. 尽可能少的去调用`clong`，当你真的需要使用`clong`时，可以试试`Rc::clone(&value)` [[rc docs\]](https://doc.rust-lang.org/std/rc/index.html)
+9. 尽可能少的去调用`clone`，当你真的需要使用`clone`时，可以试试`Rc::clone(&value)` [[rc docs\]](https://doc.rust-lang.org/std/rc/index.html)
 
 10. Rust的一个特点是安全可变性，但是只有当你写出的[不可变变量](https://doc.rust-lang.org/book/ch03-01-variables-and-mutability.html#variables-and-mutability)和[纯函数](https://en.wikipedia.org/wiki/Pure_function)使你的代码不可读，太慢或者容易出错的时候，才使用它。
 
 11. “提前优化是一切灾祸的根源。”——特别是在Rust这种运行速度很快的语言当中。不要做额外的事除非你的基准测试已经准备好要去测试你的代码。个人的一些案列：
 
     - 当我在用Rust写代理服务器的时候，有两个因素使得代理服务器的速度减慢了好几倍，一个是忘记删除存在于热路径（hot path）中的`println`调用，而另一个则是由于DNS服务器变慢。我建议缩小范围并优先解决更高级别的问题。
-    - Seed的VDOM补丁算法在第一次尝试时时足够快的，然而由于DOM的调用大大降低了它的速度。我建议在你尝试去优化你的Rust代码之前，去查看一下它的IO和外部依赖。
+    - Seed的VDOM补丁算法在第一次尝试时是足够快的，然而由于DOM的调用大大降低了它的速度。我建议在你尝试去优化你的Rust代码之前，先去查看一下它的IO和外部依赖。
 
-12. 仅编写跨平台代码，并且仅使用Rust工具。
+12. 仅编写跨平台代码，并且仅使用Rust工具链。
 
 13. 不要害怕去写[异步](https://rust-lang.github.io/async-book/01_getting_started/01_chapter.html)代码。
 
@@ -69,7 +68,7 @@
     - 运行`rustup update`去更新你的编译器和工具链
     - 每次更新编译器版本之后（或者更新依赖之后），删除你项目下占用你磁盘空间的`target`文件夹，他们是老版本编译器的产物。
 
-19. 了解这些[内存](https://doc.rust-lang.org/std/mem/index.html)函数：
+19. 了解这些[内存](https://doc.rust-lang.org/std/mem/index.html)相关的函数：
 
     - [discriminant](https://doc.rust-lang.org/std/mem/fn.discriminant.html)
     - [drop](https://doc.rust-lang.org/std/mem/fn.drop.html)
@@ -81,7 +80,7 @@
 
 21. 只有在为了给你的用户改进你提供的API的时候，才去使用像[Any](https://doc.rust-lang.org/std/any/trait.Any.html)这种魔法。它通常只会让你的代码更糟糕。
 
-22. 学会使用通道，标准库的文档以及一些crate的文档：
+22. 学会使用通道（channel），标准库的文档以及一些相关crate的文档：
 
     - [std::sync::mpsc::channel](https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html)
     - [futures::channel](https://docs.rs/futures/0.3.5/futures/channel/index.html)
@@ -89,7 +88,7 @@
     - [crossbeam::channel](https://docs.rs/crossbeam/0.7.3/crossbeam/channel/index.html)
     - [flume](https://docs.rs/flume/0.7.1/flume/)
 
-23. 只有你真的觉得有必要的时候才去使用[宏](https://doc.rust-lang.org/book/ch19-06-macros.html#macros)，并且要适当的给你的宏写注释。IDE对宏的支持很糟糕，比如自动补全通常不能工作。
+23. 只有你真的觉得有必要的时候才去使用[宏](https://doc.rust-lang.org/book/ch19-06-macros.html#macros)，并且要给你的宏写上合适的注释。IDE对宏的支持很糟糕，比如自动补全通常不能工作。
 
     - 有一些例外的宏比如 `println`，`vec`，`include_str`，所有的[标准库的宏](https://doc.rust-lang.org/std/index.html#macros)
     - 是的，在Seed里面有很多的宏，但是这些宏的大部分被用来替代HTML并且他们十分短。还有我们修复了他们当中的很多bug，因此该规则仍然适用。我们在权衡了很多东西之后才决定去使用宏。
@@ -99,15 +98,8 @@
       - 很难或不可能通过正确的Rust类型编码所有内容的时候，比如Seed里面像是`div!`之类的元素宏。
       - 它可以帮助你减少样板代码，比如Seed的`log!`宏，它格式化输入的参数然后在后台调用了JavaScript的`console.log`。
 
-    
+
+译者：虽然就Seed和yew而言我更喜欢yew，但是不妨碍这篇文章写的好啊，同时在本篇文章的后半段还有部分作者对rust的表白话语，看的我差点也想翻译了，手动狗头。。。
+    翻译的不是很流畅，可能会出现不少错误，欢迎大家指正。
 
     
-
-    
-
-    
-
-    
-
-     
-
