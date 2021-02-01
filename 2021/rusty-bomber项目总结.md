@@ -141,8 +141,8 @@ fn position(
 ```rust
 fn position(
     points_query: QuerySet<(
-        Query<(&mut Transform, &BodyPoint)>,
-        Query<&Transform, Or<(With<BodyPoint>, With<Head>)>>,
+        Query<(&mut Transform, &Point)>,
+        Query<&Transform, Or<(With<Point>, With<Head>)>>,
     )>,
 ) {
     ...
@@ -170,8 +170,8 @@ fn position(
 ```rust
 fn position(
     mut points_query: QuerySet<(
-        Query<(&mut Transform, &BodyPoint)>,
-        Query<&Transform, Or<(With<BodyPoint>, With<Head>)>>,
+        Query<(&mut Transform, &Point)>,
+        Query<&Transform, Or<(With<Point>, With<Head>)>>,
     )>,
 ) {
     for (mut transform, point) in points_query.q0_mut().iter_mut() {
@@ -191,8 +191,8 @@ fn position(
 ```rust
 fn position(
     mut points_query: QuerySet<(
-        Query<(&mut Transform, &BodyPoint)>,
-        Query<&Transform, Or<(With<BodyPoint>, With<Head>)>>,
+        Query<(&mut Transform, &Point)>,
+        Query<&Transform, Or<(With<Point>, With<Head>)>>,
     )>,
 ) {
     // Safety: 一般调用unsafe时，情况复杂的需要写下相关注释
@@ -216,17 +216,157 @@ bevy几乎所有的`unsafe`都贴心的写出了`Safety`，使用这部分api时
 
 谈谈`QuerySet`的体验，因为`rust-analyzer`对过程宏生成的Api支持不是很友好，对类似由宏生成的Api的代码补全体验可以说是很糟糕。而且出于减少总编译时间的考虑，这部分的过程宏只预备了五个参数的位置，也就说说除了`q0`到`q4`多出`q4`的部分，这个过程宏是没有预先生成相关函数的。当然我相信在实际应用的过程中，很少有出现这么极端的查询情况。总得来说掌握这个Api的使用并不难，而且在生产过程中也很实用。
 
-### Bevy Event
+### Event
+0.4版本的bevy的`event`有个十分不好用的地方，看以下示例：
+```rust
+pub fn game_events_handle(
+    game_events: Res<Events<GameEvents>>,
+    mut events_reader: Local<EventReader<GameEvents>>,
+) -> Result<()> {
+    ...
+}
+```
+可能只看函数参数并不能感受到哪里不好用，可是如果你注意到这是一个事件处理系统，传递进来的参数居然同时需要`Events`和`EventReader`，并且使用的时候是这样的：
+```rust
+    for event in events_reader.iter(&game_events) {
+        match event {
+            ...
+        }
+    }
+```
+没错，`EventReader`不是一个真正的迭代器，在调用`iter()`的时候需要传递一个该事件的引用，这在使用的过程中感受到多余。
+
+好在`EventReader`在即将要发布的0.5版本当中已经得到了改善，在这个[PR](https://github.com/bevyengine/bevy/pull/1244)合并之后，`EventReader`的调用已经变成了这样：
+```rust
+pub fn game_events_handle(
+    // 不再需要多余的Events作为EventReader参数
+    // game_events: Res<Events<GameEvents>>,
+    // mut events_reader: Local<EventReader<GameEvents>>,
+    // 不再需要指定Local，EventReader在Bevy中已经变成了更高级别的API
+    mut events_reader: EventReader<GameEvents>,
+) -> Result<()> {
+    // 变得更像真实的迭代器
+    for event in events_reader.iter() {
+        match event {
+            ...
+        }
+    }
+}
+```
+需要注意的是，不仅仅是`EventReader`变成了更高级别的API（即成为真正的系统参数），`Events`也同样不再需要在其外部套一个`ResMut`了，写系统时直接写`Events<T>`作为参数。
+
+> 可以这样改动的原因：之前的`Events`是作为`Resource`使用的，也就是说存在`Res`、`ResMut`两种状态。其中`Res<Events<T>>`只有给旧版的`EventReader`当作参数的存在意义，但是新版的`EventReader`已经不再需要这个参数，`Res`版本的`Events`失去了其存在意义，因此相对于`ResMut<Events<T>>`，索性改成了`Events<T>`，减少了用户API层面的复杂性。
+### Timer
+bevy现版本的`Timer`是个值得争议的地方，先来看看具体用法：
+```rust
+// 定义一个动画计时器组件：
+pub struct Animation(pub Timer);
+// 作为Player实体的组件添加到Player中：
+#[derive(Bundle)]// 使用Bundel派生宏可以将多个组件打包到一块，bevy官方指南也推介这样做，性能上似乎也比直接使用with更好
+pub struct PlayerBundle {
+    player: Player,
+    animation: Animation,
+    ...//省略了其它组件
+}
+// 初始化PlayerBundle
+impl Default for PlayerBundle {
+    fn default() -> Self {
+        Self {
+            player: Player,
+            animation: Animation(Timer::from_seconds(0.3, true)),
+            ...//省略了其它组件
+        }
+    }
+}
+// Timer 在实例化的时候需要提供两个参数，一个是计时器计时的时间，另一个是该计时器是否重复计时。
+// 查询计时器进行相关修改：
+fn player_animation(
+    time: Res<Time>,// 使用计时器时必须用到时间去tick计时器
+    mut query: Query<(&mut Animation,&Player)>,
+) {
+    for (mut animation,player) in query.iter_mut(){
+        animation.0.tick(time.delta_seconds());
+        // animation.0是因为我们将Timer包裹在了Animation下
+        if animation.0.just_finished() {
+            ...// 相关操作
+        }
+    }
+}
+```
+以上基本就是计时器在使用时的流程，现在来回答几个问题。
+
+- 为什么要使用一个结构体去包裹已有的计时器？
+> 大家应该注意到我们没有直接将计时器作为组件附加到`Player`上，而是通过一个结构体去包裹计时器之后再附加到`Player`上，这样做的其中一个原因是我们的`Player`实体可能需要不止一个计时器，所以我们需要给每个计时器不同的标识。
+- 为什么在调用计时器的`finished()`等相关计时API之前需要先调用`tick(time.delta_seconds())`?
+> bevy的计时器本身相当于一个保存有当前时间量的结构体，本身没有时间流动的概念，只有tick的时候告诉它已经过去了多少时间，它才会把过去了多少时间加到它本身保存的状态上。
+
+`Timer`比较有争议的地方就是使用计时器时不能十分容易的给它添加标识，需要在计时器外部套一个结构体，目前有些[PR](https://github.com/bevyengine/bevy/pull/1151)提出了给`Timer`增加一个泛型的位置的想法，我个人不是很喜欢这种实现，理由很多，比如`@cart`大大的理由就是bvey内部有不少不需要特殊标识的计时器，如果添加泛型之后需要这样写：`Timer<()>`，相对于之前的`Timer`来说，实在是太丑了。
+
+出了标识的问题，还有目前的计时器使用的`f32`类型，应该替换成时间更常用的`Duration`，刚刚提到的PR在这个方面就已经完成了。
+
+### `system`的链接与代码复用
+
+之前`Events`部分有个系统例子和其它常规例子不一样：
+```rust
+pub fn game_events_handle(
+    mut events_reader: EventReader<GameEvents>,
+) -> Result<()> {
+    ...
+}
+```
+它拥有一个`Result`返回值，如果直接将这个系统添加到`App`中，会被`rust-analyzer`直接报错，因为bevy不支持带有返回值的系统。
+
+那如何让带有返回值的系统添加到`App`中去呢？当然是处理掉它的返回值，bevy给我们提供了一个`fn chain(self, system: SystemB)`函数，调用的时候大概像下面这样：
+```rust
+    .add_system(game_events_handle.system().chain(error_handler.system()))
+```
+它可以‘无限续杯’，只要你愿意，你可以无限`chain`下去。
+
+那如何写一个可以`chain`的系统呢？考虑以下系统
+```rust
+pub fn head_translation(query: Query<&Transform, With<Head>>) -> Option<Vec3> {
+    query.iter().map(|transform| transform.translation).next()
+}
+```
+该系统返回一个`Option<Vec3>`，因此能够处理该返回值的系统应该要带有一个`In<Option<Vec3>>`的参数：
+```rust
+pub fn head_translation_handle(come_in: In<Option<Vec3>>) -> Option<Vec3> {
+    if let In(Some(vec)) = come_in {
+        Some(vec + Vec3::new(1.0, 1.0, 0.0) * 30.0)
+    } else {
+        None
+    }
+}
+```
+出于教学目的，这里没有直接处理本不需要再返回出去的`Option<Vec3>`，而是为了验证多次链接是否有用：
+```rust
+pub fn body_point_translation_handle(
+    come_in: In<Option<Vec3>>,
+    mut query: Query<&mut Transform, With<BodyPoint>>,
+) {
+    if let In(Some(vec)) = come_in {
+        for mut transform in query.iter_mut() {
+            transform.translation = vec;
+        }
+    }
+}
+```
+没错，在每次链接的时候，你可以添加新的参数，这种设计大大增加代码的灵活性，同时也提高了代码复用率。
+
+这是bevy中我很喜欢的一个功能，既实用又灵活。虽然在本次项目中用到的地方不多，基本都用来做错误处理了，但是我相信在一个大型项目中，这种功能够充分发挥出它的优势，大概就是bevy中各处都彰显着类似这样设计的人体工程学，因此大家才为之感到兴奋。
 
 ### 如何实现游戏的不同状态
 
-### 该项目中所涉及的值得记录的rapier笔记
+当前版本的bevy管理游戏状态相对于之前有了很大进步，当仍然称不上是完美的设计，使用体验上只能说是一般。
 
-### 开发过程中发现的bevy api缺陷
+### Local和Resource
+### Rapier
+### 资产加载
+### 多平台支持
+### 日志
+bevy内建了日志系统，使用起来也十分方便，同时也能和rust生态中的其它日志crate一起使用，对于后续测试有很重要的作用。
 
-### wasm支持
-
-### 安卓支持
+这次项目中我们并没有深入使用日志功能，也没有和外部的日志crate进行深度结合使用，只是当作`println!`调试的时候用。
 
 ### 使用bevy的开发体验
 
