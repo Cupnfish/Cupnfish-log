@@ -355,18 +355,293 @@ pub fn body_point_translation_handle(
 
 这是bevy中我很喜欢的一个功能，既实用又灵活。虽然在本次项目中用到的地方不多，基本都用来做错误处理了，但是我相信在一个大型项目中，这种功能够充分发挥出它的优势，大概就是bevy中各处都彰显着类似这样设计的人体工程学，因此大家才为之感到兴奋。
 
+当然上面的代码可能有些地方让有强迫症的人感到不适，比如传出来的结果为啥是`Option`的，这样如果这个系统返回`None`的时候仍然一直在游戏中运行会不会很占资源？确实是会有这方面的考虑，所以现在已经有[PR](https://github.com/bevyengine/bevy/pull/1393)提出了异步系统的概念，如果真的实现出来的话，应该来大大减缓这种情况，编写出来的代码估计也会好看一些。
+
 ### 如何实现游戏的不同状态
 
-当前版本的bevy管理游戏状态相对于之前有了很大进步，当仍然称不上是完美的设计，使用体验上只能说是一般。
+我们的项目中实现了一个完整的游戏流程，包括开始游戏的菜单界面，游戏内部的暂停，玩家被炸弹炸死或者被生物触碰时的失败，以及玩家找到下一关的入口之后的胜利。如果有体验过我们的游戏，会发现关卡基本没有设计，仅仅只是实现了游戏中各种道具的效果，包括第一关与第二关的区别也仅仅是多了几只怪。作为游戏而言，我是对这部分的实现是很不满意的，但是作为体验、学习bevy而言，我觉得收获良多。我甚至还保留了一个随机的关卡实现接口，只不过没有真的去实现，roguelike的相关算法此前我都没有什么经验，只希望下一个项目能够在这方面得到提升。
 
-### Local和Resource
+回到正题，为了实现这样一个完整的游戏流程，我参考了[Kataster](https://github.com/Bobox214/Kataster)的相关代码，将游戏整体流程放在了`AppState`这个枚举体内：
+```rust
+pub enum AppState {
+    StartMenu,
+    Game,
+    Temporary,
+}
+```
+
+看上去我们的游戏有`StartMenu`、`Game`、`Temporary`三个状态，实际上只需要考虑前两个状态就好了，`Temporaty`这个状态只是为了方便修复游戏中的一个小bug而已。
+
+通常构建一个游戏的状态需要以下四个步骤：
+
+1.将我们的游戏状态以资源的方式添加到游戏中：
+```rust
+app.add_resource(State::new(AppState::StartMenu))
+// 添加游戏状态资源时，需要特意指明初始化的状态，比如这里就指明了创建好的状态加载到游戏开始菜单的状态下
+```
+2.初始化StateStage
+```rust
+// 接上第一步的部分
+    .add_stage_after(// 此处也很灵活，可以按照自己的喜好来
+        stage::UPDATE,// target，你可以把你的状态放到你想放的任何已有状态下
+        APP_STATE_STAGE,// name，名字也很灵活，可以自己取，这里是const APP_STATE_STAGE: &str = "app_state";
+        StateStage::<AppState>::default(),// 这里就挺固定了，需要将你的游戏状态枚举作为StateStage的一个泛型，以便初始化。
+    )
+```
+3.处理stage
+```rust
+// 紧接上一步
+    .stage(APP_STATE_STAGE, |stage: &mut StateStage<AppState>| {
+        // 通过这个闭包，可以给我们游戏的不同状态添加系统
+        stage
+            // start menu
+            // on_state_enter用来设置进入该State时调用的系统，通常用来加载资源。
+            .on_state_enter(AppState::StartMenu, start_menu.system())
+            // on_state_update用来设置该State下游戏更新时调用的系统。
+            .on_state_update(AppState::StartMenu, button_system.system())
+            // on_state_exit用来设置退出该State时调用的系统，通常用来清楚屏幕，更新相关游戏数据之类的。
+            .on_state_exit(AppState::StartMenu, exit_ui_despawn.system())
+            // in game
+            .on_state_enter(AppState::Game, setup_map.system()))
+            // 类似于on_state_update，不过可以同时设置多个。
+            .update_stage(AppState::Game, |stage: &mut SystemStage| {
+                stage
+                // 以下的方法都不是SystemStage自带的，而是在我们游戏项目的各个模块下通过自定义trait给SystemStage实现的，只是为了方便管理各个模块。
+                // 这部分设计是有缺陷的，一般来说physics系统中的其中一部分是需要提前加载的，不然会造成现版本中出现查询错误的小bug
+                    .physics_systems()
+                    .player_systems()
+                    .bomb_systems()
+                    .buff_systems()
+                    .creature_systems()
+                    .portal_systems()
+            })
+            .on_state_exit(AppState::Game, exit_game_despawn.system())
+            .on_state_enter(AppState::Temporary, jump_game.system())
+    });
+```
+4.处理游戏状态跳转
+```rust
+// 另外构建一个处理游戏状态的跳转的系统
+pub fn jump_state(
+    mut app_state: ResMut<State<AppState>>,
+    input: Res<Input<KeyCode>>,
+    mut app_exit_events: ResMut<Events<AppExit>>,
+) -> Result<()> {
+    // 使用模式匹配能够很清晰的将我们游戏状态跳转进行处理
+    match app_state.current() {
+        AppState::StartMenu => {
+            if input.just_pressed(KeyCode::Return) {
+                // set_next这个方法就是从当前状态跳转到指定状态
+                app_state.set_next(AppState::Game)?;
+                // game_state是原来处理游戏状态下的各种状态的，比如暂停、胜利、失败等，和app_state大同小异，因此此处都省略了，如果感兴趣可以直接看这部分源码，放到了src/events下
+                // game_state.set_next(GameState::Game)?;
+            }
+            if input.just_pressed(KeyCode::Escape) {
+                // 这个事件是bevy内置的事件，用来退出应用
+                app_exit_events.send(AppExit);
+            }
+        }
+        AppState::Game => {
+            if input.just_pressed(KeyCode::Back) {
+                app_state.set_next(AppState::StartMenu)?;
+                // game_state.set_next(GameState::Invalid)?;
+                map.init();
+            }
+        }
+        AppState::Temporary => {}
+    }
+    Ok(())
+}
+```
+通过以上四个步骤，就能够为你的游戏添加上不同的状态，现在我们来谈一下第三步，其实这部分很有可能在之后的版本中被[新的调度器](https://github.com/bevyengine/bevy/pull/1144)取代，但那还是久远之后的事，到那时需要新的blog去探讨。
+
 ### Rapier
-### 资产加载
+
+`rapier`作为物理引擎，它的内容十分丰富，本项目所涉及的内容，仅仅是其中的一小部分，本文也只是从中挑出了一些有意义的进行记录。如果想要深入学习`rapier`，我的建议是先看[官方文档](https://rapier.rs/docs/user_guides/rust/getting_started)，然后再去[discord](https://discord.gg/VuvMUaxh)的`bevy_rapier`群组去交流学习。
+
+rapier的常用组件有两个，一个是刚体（RigidBody），一个是碰撞体（Collider）。bevy中的每一个实体，只能有一个刚体，而碰撞体可以有多个，比如角色的头、胳膊、腿，这些部分都可以使用单独一个碰撞体来表示。
+
+创建刚体的方法很简单：
+```rust
+// 创建一个运动学刚体，不受外部力影响，但是能单向影响动态刚体，需要通过专门设置其位置，常用于玩家所控制的角色
+RigidBodyBuilder::new_kinematic()
+.translation(translation_x, translation_y)
+// 创建一个静态刚体，不受任何外部力的影响，常用于墙体等静态物体
+RigidBodyBuilder::new_static()
+.translation(translation_x, translation_y)        
+// 创建一个动态刚体，受外部力的影响，常用于场景中的各类物体
+RigidBodyBuilder::new_dynamic()        
+.translation(translation_x, translation_y)        
+.lock_rotations()// （可选）让刚体锁定旋转    
+.lock_translations()// （可选）让刚体锁定位置
+```
+> 创建刚体时需要明确指定其位置，因为`bevy_rapier`内部有一个系统专门用于转换刚体的位置和实体的`Transform`，相当于我们不再需要去管理实体中的`Transform`，只需要通过刚体来管理该实体的速度、位置、旋转、受力等就可以。
+
+创建碰撞体的方法也很简单：
+```rust
+// 碰撞体实际上就是定义参与碰撞计算的形状，rapier有多种选择，因为我们的游戏项目中只用到两种，所以只谈这两类
+// 矩形，设置的时候需要提供它的半高和半宽
+ColliderBuilder::cuboid(hx, hy)
+// 圆形，设置的时候需要提供半径
+ColliderBuilder::ball(radius)
+```
+> note：矩形碰撞体构建需要提供的参数是半高和半宽，而不是整高和整宽。
+
+对于单一碰撞体的直接讲刚体和碰撞体作为组件插入到已有实体即可：
+```rust
+fn for_player_add_collision_detection(
+    commands: &mut Commands,
+    query: Query<
+        (Entity, &Transform),
+        (
+            With<Player>,
+            Without<RigidBodyBuilder>,
+            Without<ColliderBuilder>,
+            Without<RigidBodyHandleComponent>,
+            Without<ColliderHandleComponent>,
+        ),
+    >,
+) {
+    for (entity, transform) in query.iter() {
+        let translation = transform.translation;
+        commands.insert(
+            entity,
+            (
+                create_dyn_rigid_body(translation.x, translation.y),
+                create_player_collider(entity),
+            ),
+        );
+    }
+}
+```
+我们的游戏当中使用的是动态加载，也就是在所有地图资源加载之后，再给没有加上刚体和碰撞体的实体插入相应的刚体和实体。
+
+比如上面给出的例子，可能有几个地方会让大家觉得奇怪：
+
+首先是查询的过滤器，因为我们是给没有刚体构建器和碰撞体构建器的实体插入刚体和碰撞体，所以再过滤器中有` Without<RigidBodyBuilder>`和`Without<ColliderBuilder>`并不让人奇怪。让人奇怪的地方是后两条过滤器`Without<RigidBodyHandleComponent>`和`Without<ColliderHandleComponent>`，这两条实际上是因为`bevy_rapier`内部有一个负责转换构建器（`Builder`）到句柄组件（`HandleComponent`）的系统，当我们给实体插入构建器之后，该系统就会通过一些内部的方法将其转换为句柄组件。所以为了防止我们查询到的结果当中存在已经插入过句柄组件的实体，所以需要再加入这条过滤。
+
+第二个让人疑惑的地方是，对于玩家控制的角色刚体，我们的游戏项目中没有使用之前提到的适合玩家控制角色的运动学刚体（`KinematicRigidBody`）而是使用了动态刚体（`DynamicRigidBody`），主要原因当时对运动学刚体不是很熟悉，所以选择了更简单易控的动态刚体。
+
+仅仅添加这些并不足以让物理引擎在我们的游戏里面运行起来，主要原因是现在的`bevy_rapier`仍然是作为一个外部crate引入到我们的游戏项目中，在将来如果集成到了`bevy`主体的物理引擎中，则不再需要以下操作。
+```rust
+// 在app中添加物理引擎插件
+    app
+    ...// 初始化其它资源和添加其它插件
+        .add_plugin(RapierPhysicsPlugin)
+```
+这样简单设置之后，我们的游戏中就成功的启用了物理引擎。
+
+还有一件事需要特别记录一下，在我们的游戏中，生物是可以互相碰撞的，那么如何实现这种效果呢？只需要在创建碰撞器的时候指明解算组或者碰撞组即可。
+```rust
+    ColliderBuilder::cuboid(HALF_TILE_WIDTH, HALF_TILE_WIDTH)
+        // 用户数据，可以插入一些自定义的数据，但是只能以u128格式插入，通常用来插入实体，有了实体之后可以通过查询来获取该实体的其它组件
+        .user_data(entity.to_bits() as u128)
+        // 解算组，可以通过设定一个交互组（InteractionGroups）来让该碰撞器在该组规则下进行力的解算
+        .solver_groups(InteractionGroups::new(WAY_GROUPS, NONE_GROUPS))
+        // 碰撞组，同样设定交互组之后，让该碰撞器在该组规则下进行碰撞解算
+        .collision_groups(InteractionGroups::new(WAY_GROUPS, NONE_GROUPS))
+```
+在更进一步谈论结算组和碰撞组的区别之前，我们需要了解交互组的构建规则，交互组`new`的时候需要提供两个参数，第一个参数是设定该碰撞体属于哪一组，需要的参数类型是一个`u16`，第二个参数是设定该碰撞体和哪些组的碰撞体会产生交互，参数同样是一个`u16`。
+
+对于第二个参数，设定和单个碰撞体交互倒是挺好理解，但如果设定和多个碰撞体交互又该怎么设置呢？这正是参数的类型设定为`u16`的妙处，举个例子：
+```rust
+const CREATURE_GROUPS: u16 = 0b0010;
+const PLAYER_GROUPS: u16 = 0b0001;
+const WALL_GROUPS: u16 = 0b0100;
+const WAY_GROUPS: u16 = 0b1000;
+const NONE_GROUPS: u16 = 0b0000;
+```
+以上常量皆是我们这次游戏中用到的交互组变量，而`0b0011`表示的就是生物组和玩家组两个组，而这个树就是用`CREATURE_GROUPS`和`PLAYER_GROUPS`通过`&`运算出来的。
+
+至于解算组和碰撞组的区别，解算组解算的就是受力状况，与之交互的组都会参与到受力解算中。而碰撞组是管理碰撞事件的，碰撞事件可以通过`Res<EventQueue>`进行接收处理。
+
+还有`user_data`也是一个比较常用的，通常是在碰撞体插入的时候将该实体传入到碰撞体构建器当中，通过这个数据，可以使用以下命令获得实体：
+```rust
+let entity = Entity::from_bits(user_data as u64);
+```
+那`user_data`又从哪里来呢？从碰撞事件中我们会获得一个索引，该索引可以通过`Res<ColliderSet>`的get方法获取器`user_data`，这方面比较繁琐，也是我认为目前`bevy_rapier`当中最不好用的部分。
+
+除此之外，如果你就此运行你的游戏，你会发现你的角色也好，画面中的其它动态刚体，除了你设定的之外，还会收到一个重力，这完全不符合你俯视2d游戏的初衷，所以我们需要将该重力给修改为零。
+
+当前版本是通过添加这样一个系统来修改物理引擎的重力的：
+```rust
+fn setup(
+    mut configuration: ResMut<RapierConfiguration>,
+) {
+    configuration.gravity = Vector::y() * 0.0;
+}
+```
+将这个系统添加到`startup_system()`只需要在每次游戏启动之前运行一次就行。
+
 ### 多平台支持
+我们的游戏这次除了支持正常的桌面端平台以外，还做了`wasm`的支持，其中因为`bevy`的声音在`wasm`没有得到支持继而没有实现声音以外，总算是没什么遗憾。做完游戏之后发给小伙伴们玩了一下，都在问我有没有手机版本的。`bevy`的支持计划里面是有移动端的，而且就从桌面端迁移到移动端上要做出的改变来说是很少的，再说我们尚未支持的移动端之前，来看看我们是如何支持`wasm`版本的。
+
+`bevy`的渲染后端用的是`wgpu`，虽然原生的`wgpu`渲染后端已经支持编译到`wasm`了，但是由于某些原因居然没有给`bevy`实装上，我们能够参考的已有的`bevy`的`wasm`版本项目基本上都是基于`bevy_webgl2`这个crate。
+
+添加`wasm`支持也十分方便，除了需要添加常规的html之类的文件，还需要做如下改动：
+```rust
+// 添加webgl2的插件，添加这个插件之前需要关闭bevy的wgpu的feature
+    #[cfg(target_arch = "wasm32")]
+    app.add_plugins(bevy_webgl2::DefaultPlugins);
+    #[cfg(not(target_arch = "wasm32"))]
+    app.add_plugins(DefaultPlugins);
+```
+关闭wgpu的feature：
+```toml
+[features]
+# 这部分是native和wasm都会用到的bevy的feature
+default = [
+  "bevy/bevy_gltf",
+  "bevy/bevy_winit",
+  "bevy/bevy_gilrs",
+  "bevy/render",
+  "bevy/png",
+]
+# 这部分是native会用到的wgpu的feature
+native = [
+  "bevy/bevy_wgpu",
+  "bevy/dynamic"# （可选，开发的时候提高增量编译速度，编译真的十分快！）
+]
+# 这部分是wasm支持会用到的webgl2的feature
+web = [
+  "bevy_webgl2"
+]
+```
+基本上这样就设置好了，其余的设置是跟html有关的，需要稍微丢丢的wasm开发的知识。关于编译的时候用到的`cargo make`等工具链如何使用，同样是在那一丢丢的wams开发的知识里面学习。关于如何部署到github的page服务上，这个我是完全不会的，我们游戏的这部分部署是有我的搭档`@rgripper`完成的。
+
+对于移动端的支持，以安卓为例，如果不考虑触屏啊，按钮之类的，官方其实给了示例的，在桌面端的基础上迁移起来也十分方便。除了基本的安卓开发环境的搭配（这部分可以详情看[`cargo mobile`](https://github.com/BrainiumLLC/cargo-mobile)的READEME里面讲的十分详情），只需要做出下面这种改动，即可支持移动端，甚至如果以后修复了wgpu对wasm端的支持，应该同样也只是需要下面这种修改，即可对多端支持：
+```rust
+// 对，就是添加这个过程宏之后，编译的时候使用对应平台的编译指令即可打包到相应平台
+#[bevy_main]
+fn main() {
+    App::build()
+        .insert_resource(Msaa { samples: 2 })
+        .add_plugins(DefaultPlugins)
+        .add_startup_system(setup.system())
+        .run();
+}
+```
 ### 日志
-bevy内建了日志系统，使用起来也十分方便，同时也能和rust生态中的其它日志crate一起使用，对于后续测试有很重要的作用。
+bevy内建了日志系统，使用起来也十分方便，同时也能和rust生态中的其它日志crate配合在一起使用，对于后续测试和收集数据有很重要的作用。
 
-这次项目中我们并没有深入使用日志功能，也没有和外部的日志crate进行深度结合使用，只是当作`println!`调试的时候用。
+这次项目中我们并没有深入使用日志功能，也没有和外部的日志crate深度结合使用，只是当作`println!`调试的时候用，所以这部分就不再探讨。
 
-### 使用bevy的开发体验
+### 碎碎念
 
+这是本文的最后一个部分，也是谈谈开发下来的一些感受，上面基本是干货居多，感受这种东西并不是每个人的愿意看，所以也不愿意放在前面叨扰大家。总得来说做完整个项目总结之后，发现自己之前走了不少弯路，甚至有些地方都用错了（比如前几个版本中的切换游戏状态，受参考的源代码影响也用了一堆if-else，当时自己看的时候也是一头雾水的，改成match之后清晰明了），在这个项目之前，rust对于我来说只是刷题、刷教程趁手的工具，虽然学到了不少的知识，但总觉得缺乏自己的实践。但这样一趟走下来，实践经验确实增长不少，最重要的是还交到了`@rgripper`这样的好朋友，果然github是个大型在线交友平台，哈哈哈。
+
+使用`bevy`的开发体验在我这里被区分为两个部分，但总得来说是十分有趣的。
+
+而这个分界点就是在游戏里加入[rapier](https://rapier.rs/)前后，加入之前和加入之后是两种完全不同的开发体验。
+
+其中最主要原因还是因为自己之前没有使用过物理引擎，有不少生涩的词汇在开发中需要接触和学习，加上`bevy_rapier`当中不少接口放到`bevy`实际开发中体验并不良好，所以造成了使用`rapier`之后开发速率下降、开发心情糟糕等情况。
+
+当然对于最终我们的游戏中使用了`rapeir`这件事，我觉得是很值得的，在这样一个小游戏中使用物理引擎这件事并不值得。但如果是为了学习这个物理引擎，那就是值得的，而且也确实涨了不少知识（在这部分真的十分感谢`rapier`的作者[@Sébastien Crozet](https://github.com/sebcrozet)，在他的discord群组里，基本上大家问的问题都得到了解决，也很感谢群组里帮助我们提出思路的各个网友）。
+
+谈一下本次开发中的遗憾，游戏没有加入音频算一个遗憾，这部分的工作早先是由我的搭档去完成的，但是因为bevy的[一些原因](https://github.com/bevyengine/bevy/issues/88#issuecomment-753546363)，导致音频部分对wasm支持很差，所以我们放弃了。地图没有细致的去设计以及没有随机地图的支持这算两个遗憾。小怪的ai因为我们连个人此前都没写过游戏，因此对这方面不熟悉，导致有时候小怪会傻傻站着，和卡了bug一样，这也算一个。在游戏基本写完的时候[`bevy_tilemap`](https://github.com/joshuajbouw/bevy_tilemap)发布了，并且还有一个游戏动图，我们没能在一个网格游戏当中用到这种crate，也算是一个遗憾。游戏的资产加载没有专门做成一个状态，导致在网络差的情况下，网页版的游戏很有可能出现这个[issue](https://github.com/rgripper/rusty-bomber/issues/16)所说的游戏主体出现了但是游戏资产没有加载进来的诡异情况，这也算是一个遗憾。
+
+除此之外，再细数还能数出很多遗憾，也不再碎碎念了。倒是因为之前说过我们还有下一款游戏即将动工，是复刻steam上的一个2d养成策略类游戏西米岛，`@rgripper`说它想看看最后我们的游戏生成的地图最大能有多大，对我们来说是一个不小的挑战。之前的发布的时候我有说过一些大家参与的话题，但是居然没有留下联系方式，实在是有点蠢了。具体的联系方式还没有想出来，不过大家可以再各个rust群里找到我，Id基本都是Cupnfish，头像也是一只花猫，不过和bevy有关的话题还是建议在微信bevy群里沟通。
+
+最近因为`@rgripper`进入了所谓的职业倦怠期，所以大概最近都不会写代码，不过我们的项目可以提前由我们先开启，但在这个项目开启之前，我还想实现一个小项目，[TheRujiK](https://twitter.com/TheRujiK/status/969581641680195585?s=20)的这条推文，提供的实现蜥蜴的方法，如果真的能够实现出来，到时候应该会有一个完整的bevy教程手把手的实现它。
+
+![蜥蜴动图](./salamanders.gif)
