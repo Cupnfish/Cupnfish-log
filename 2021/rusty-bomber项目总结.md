@@ -463,13 +463,13 @@ rapier的常用组件有两个，一个是刚体（RigidBody），一个是碰�
 
 创建刚体的方法很简单：
 ```rust
-// 创建一个运动学刚体，不受外部力影响，但是能单向影响动态刚体，需要通过专门设置其位置，常用于玩家所控制的角色
+// 创建一个运动学刚体，不受外部力影响，但是能单向影响动态刚体，需要通过专门设置其位置，常用于移动平台，如电梯
 RigidBodyBuilder::new_kinematic()
 .translation(translation_x, translation_y)
 // 创建一个静态刚体，不受任何外部力的影响，常用于墙体等静态物体
 RigidBodyBuilder::new_static()
 .translation(translation_x, translation_y)        
-// 创建一个动态刚体，受外部力的影响，常用于场景中的各类物体
+// 创建一个动态刚体，受外部力的影响，常用于玩家控制的角色、游戏中的怪物等
 RigidBodyBuilder::new_dynamic()        
 .translation(translation_x, translation_y)        
 .lock_rotations()// （可选）让刚体锁定旋转    
@@ -514,13 +514,12 @@ fn for_player_add_collision_detection(
     }
 }
 ```
-我们的游戏当中使用的是动态加载，也就是在所有地图资源加载之后，再给没有加上刚体和碰撞体的实体插入相应的刚体和实体。
+> 如果只是单个碰撞体和刚体的组合，则用这种方法插入即可，但如果是多个碰撞体和单个刚体的组合，则稍微有所不同，详情可以看[这里](https://github.com/dimforge/bevy_rapier/blob/master/bevy_rapier2d/examples/multiple_colliders2.rs)。
 
-比如上面给出的例子，可能有几个地方会让大家觉得奇怪：
+我们的游戏当中使用的是动态加载，也就是在所有地图资源加载之后，再给没有加上刚体和碰撞体的实体插入相应的刚体和碰撞体。
 
-首先是查询的过滤器，因为我们是给没有刚体构建器和碰撞体构建器的实体插入刚体和碰撞体，所以再过滤器中有` Without<RigidBodyBuilder>`和`Without<ColliderBuilder>`并不让人奇怪。让人奇怪的地方是后两条过滤器`Without<RigidBodyHandleComponent>`和`Without<ColliderHandleComponent>`，这两条实际上是因为`bevy_rapier`内部有一个负责转换构建器（`Builder`）到句柄组件（`HandleComponent`）的系统，当我们给实体插入构建器之后，该系统就会通过一些内部的方法将其转换为句柄组件。所以为了防止我们查询到的结果当中存在已经插入过句柄组件的实体，所以需要再加入这条过滤。
+比如上面给出的例子，可能大家会对查询的过滤器感到奇怪。因为我们是给没有刚体构建器和碰撞体构建器的实体插入刚体和碰撞体，所以再过滤器中有` Without<RigidBodyBuilder>`和`Without<ColliderBuilder>`并不让人奇怪。让人奇怪的地方是后两条过滤器`Without<RigidBodyHandleComponent>`和`Without<ColliderHandleComponent>`，这两条实际上是因为`bevy_rapier`内部有一个负责转换构建器（`Builder`）到句柄组件（`HandleComponent`）的系统，当我们给实体插入构建器之后，该系统就会通过一些内部的方法将其转换为句柄组件。所以为了防止我们查询到的结果当中存在已经插入过句柄组件的实体，所以需要再加入这条过滤。
 
-第二个让人疑惑的地方是，对于玩家控制的角色刚体，我们的游戏项目中没有使用之前提到的适合玩家控制角色的运动学刚体（`KinematicRigidBody`）而是使用了动态刚体（`DynamicRigidBody`），主要原因当时对运动学刚体不是很熟悉，所以选择了更简单易控的动态刚体。
 
 仅仅添加这些并不足以让物理引擎在我们的游戏里面运行起来，主要原因是现在的`bevy_rapier`仍然是作为一个外部crate引入到我们的游戏项目中，在将来如果集成到了`bevy`主体的物理引擎中，则不再需要以下操作。
 ```rust
@@ -541,7 +540,7 @@ fn for_player_add_collision_detection(
         // 碰撞组，同样设定交互组之后，让该碰撞器在该组规则下进行碰撞解算
         .collision_groups(InteractionGroups::new(WAY_GROUPS, NONE_GROUPS))
 ```
-在更进一步谈论结算组和碰撞组的区别之前，我们需要了解交互组的构建规则，交互组`new`的时候需要提供两个参数，第一个参数是设定该碰撞体属于哪一组，需要的参数类型是一个`u16`，第二个参数是设定该碰撞体和哪些组的碰撞体会产生交互，参数同样是一个`u16`。
+在更进一步谈论解算组和碰撞组的区别之前，我们需要了解交互组的构建规则，交互组`new`的时候需要提供两个参数，第一个参数是设定该碰撞体属于哪一组，需要的参数类型是一个`u16`，第二个参数是设定该碰撞体和哪些组的碰撞体会产生交互，参数同样是一个`u16`。
 
 对于第二个参数，设定和单个碰撞体交互倒是挺好理解，但如果设定和多个碰撞体交互又该怎么设置呢？这正是参数的类型设定为`u16`的妙处，举个例子：
 ```rust
@@ -551,7 +550,7 @@ const WALL_GROUPS: u16 = 0b0100;
 const WAY_GROUPS: u16 = 0b1000;
 const NONE_GROUPS: u16 = 0b0000;
 ```
-以上常量皆是我们这次游戏中用到的交互组变量，而`0b0011`表示的就是生物组和玩家组两个组，而这个树就是用`CREATURE_GROUPS`和`PLAYER_GROUPS`通过`&`运算出来的。
+以上常量皆是我们这次游戏中用到的交互组变量，而`0b0011`表示的就是生物组和玩家组两个组，而这个数就是用`CREATURE_GROUPS`和`PLAYER_GROUPS`通过`&`运算出来的。
 
 至于解算组和碰撞组的区别，解算组解算的就是受力状况，与之交互的组都会参与到受力解算中。而碰撞组是管理碰撞事件的，碰撞事件可以通过`Res<EventQueue>`进行接收处理。
 
