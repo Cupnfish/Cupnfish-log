@@ -668,4 +668,3 @@ bevy内建了日志系统，使用起来也十分方便，同时也能和rust生
 
 邮箱：pointu@foxmail.com
 QQ：760280519
-微信：BXQC7610
