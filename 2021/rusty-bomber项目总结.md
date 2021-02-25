@@ -1,3 +1,5 @@
+[TOC]
+
 ### 前言
 
 [Rusty BomberMan](https://github.com/rgripper/rusty-bomber)是著名的BomberMan小游戏的bevy复刻版。虽然说是复刻，但实际上和原本游戏长得完全不一样，原因是原版游戏的美术资源没搞到，所以另找了一些美术资源，十分感谢[opengameart.org](https://opengameart.org/)上[这些](https://github.com/rgripper/rusty-bomber#assets-and-attribution)美术资源。
