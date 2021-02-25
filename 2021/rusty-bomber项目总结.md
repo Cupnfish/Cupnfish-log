@@ -7,7 +7,7 @@
 - [QuerySet](#queryset)
 - [Event](#event)
 - [Timer](#timer)
-- [`system`的链接与代码复用](#-system的链接与代码复用)
+- [system的链接与代码复用](#-system的链接与代码复用)
 - [如何实现游戏的不同状态](#如何实现游戏的不同状态)
 - [Rapier简短笔记](#rapier简短笔记)
 - [通过Rapier来实现碰撞过滤](#通过rapier来实现碰撞过滤)
