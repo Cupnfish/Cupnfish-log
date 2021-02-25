@@ -1,4 +1,5 @@
 ### 目录
+- [Bevy简介](#bevy简介)
 - [前言](#前言)
 - [开发动机](#开发动机)
 - [rust开发环境推介](#rust开发环境推介)
@@ -15,7 +16,19 @@
 - [日志](#日志)
 - [碎碎念](#碎碎念)
 
+### Bevy简介
 
+bevy是一款由Rust语言构建且简单明了的数据驱动的游戏引擎,永远开源免费! 
+
+它的设计目标如下:
+- 功能:提供完整的2D和3D功能集
+- 简单:对于新手来说很容易上手，但是对于高级用户来说非常灵活
+- 以数据为中心:使用实体组件系统范式的面向数据的体系结构
+- 模块化:只使用你需要的。替换掉你不喜欢的东西
+- 快速:应用逻辑应该快速运行，并且在可能的情况下并行运行
+- 高效:变更应该能够快速编译…等待不是有趣的
+
+[官网了解更多](https://bevyengine.org/): https://bevyengine.org/ 
 ### 前言
 
 [Rusty BomberMan](https://github.com/rgripper/rusty-bomber)是著名的BomberMan小游戏的bevy复刻版。虽然说是复刻，但实际上和原本游戏长得完全不一样，原因是原版游戏的美术资源没搞到，所以另找了一些美术资源，十分感谢[opengameart.org](https://opengameart.org/)上[这些](https://github.com/rgripper/rusty-bomber#assets-and-attribution)美术资源。
@@ -668,3 +681,4 @@ bevy内建了日志系统，使用起来也十分方便，同时也能和rust生
 
 邮箱：pointu@foxmail.com
 QQ：760280519
+
