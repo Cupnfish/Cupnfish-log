@@ -1,7 +1,7 @@
 ### Foreword
 [Rusty BomberMan](https://github.com/rgripper/rusty-bomber) is a clone of the famous `BomberMan` game. It only remotely resembles original game and uses some nice open source assets [some art resources](https://github.com/rgripper/rusty-bomber#assets-and-attribution) from [opengameart.org](https://opengameart.org/).
 
-### Motivation for development
+### My Motivation
 I saw a post on reddit by [@rgripper](https://github.com/rgripper) looking for someone to help with a project using bevy engine. I got in touch with him and started working on it with learning by doing.
 
 ### Rust dev environment
@@ -9,7 +9,7 @@ I saw a post on reddit by [@rgripper](https://github.com/rgripper) looking for s
 We used the latest version of Rust (Bevy docs recommended the nightly version, which enables much faster compilation).
 I coded in `vscode` + [`rust-analyzer`](https://github.com/rust-analyzer/rust-analyzer) (the latest release, I prefer to download source code and compile myself) + [`Tabline`](https://www.tabnine.com/) (optional) , alternatively you can use `Clion` + [`IntelliJ Rust`](https://www.jetbrains.com/rust/). 
 
-### Compile speed
+### Compilation
 
 Bevy’s web site mentions that the compilation is very fast.  And when version 0.4 was released, incremental compilation was even faster thanks to the dynamically linked feature, but it required a some extra configuration.
 
@@ -24,9 +24,9 @@ When the `dynamic` feature is enabled for compilation, each incremental compilat
 
 So how do you build a development environment that compiles quickly?
 
-The site explains in detail how to set up a fast development environment: https://bevyengine.org/learn/book/getting-started/setup/(in the final section, Enable Fast Compiles (Optional))
+Here is a detailed explanation: https://bevyengine.org/learn/book/getting-started/setup/ (in the final section, Enable Fast Compiles (Optional))
 
-There may be some strange questions in setting up the environment, such as this:
+You may stumble upon this puzzling error:
 
 ```shell
 error: process didn't exit successfully: `target\debug\bevy_salamanders.exe` (exit code: 0xc0000139, STATUS_ENTRYPOINT_NOT_FOUND)
@@ -45,11 +45,11 @@ linker = "rust-lld.exe"
 rustflags = ["-Zshare-generics=off"]
 ```
 
-After the change if there are similar strange mistakes, you can try to delete directly `.cargo` this folder , using only `dynamic` feature, dynamic links to compile speed is much greater than switching linker. And any other weird, unresolved issues, then you can submit an issue.
+If it doesn't help, try deleting `.cargo` folder and using only `dynamic` feature. But dynamic links are slower than a switching linker. For other problems I suggest you go to Bevy's official Discord channel or can submit an issue.
 
-### Query filter
+### Query filters
 
-Bevy has a number of query filters built in, and the 0.4 update has made it easier to use and read.
+Bevy has a number of query filters built-in, and the 0.4 update is event easier to use and read.
 
 Here’s how it works:
 
@@ -67,14 +67,14 @@ fn movement_system(
 }
 ```
 
-You can see the general usage [here](https://bevy-cheatbook.github.io/basics/queries.html#query-filters).
+There are some basic examples [here](https://bevy-cheatbook.github.io/basics/queries.html#query-filters).
 
-Common filters are `With<T>` , `Without<T>` , `Added<T>` , `Changed<T>` , `Mutated<T>` , `Or<T>` , where `Mutated` is a collection of `Added` and `Changed`, and `Added` only queries for newly added components, changed to query only `Changed` components in existing components, `Or` is more special, the use of several other filters are basically to reduce the scope of the query, but using `Or` can expand the scope of filtering, for example, to query the location and speed of players and creatures, you can define the query as:
+Common filters are `With<T>` , `Without<T>` , `Added<T>` , `Changed<T>` , `Mutated<T>` , `Or<T>` . `Added` only queries for newly added components, `Changed` is only for changes in existing components. `Mutated` is simply a mix of `Added` and `Changed`. `Or` is more special, and is used with other filters to reduce the scope of the query, but using `Or` can expand the scope of filtering. For example, to query the location and speed of players and creatures, you can define the query as:
 
 ```rust
     Query<(&Transform,&Speed),Or<(With<Player>,With<Creature>)>>
 ```
-
+  // TODO: from here and below
 When a query has more than one component, it is necessary to use parentheses to pass more than one component as a tuple. Likewise, many filters pass parameters as tuples. Using `Or`, of course, is often used with `Option`, such as querying both the position and speed of the player and the creature, as well as the player specific component, the player’s power, you can write the query as follows:
 
 ```rust
