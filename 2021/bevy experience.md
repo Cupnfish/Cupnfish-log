@@ -1,5 +1,5 @@
 ### Foreword
-[Rusty BomberMan](https://github.com/rgripper/rusty-bomber) is a clone of the famous `BomberMan` game. It only remotely resembles original game and uses some nice open source assets [some art resources](https://github.com/rgripper/rusty-bomber#assets-and-attribution) from [opengameart.org](https://opengameart.org/).
+[Rusty Bomber](https://github.com/rgripper/rusty-bomber) is a clone of the famous `BomberMan` game. It only remotely resembles original game and uses some nice open source assets [some art resources](https://github.com/rgripper/rusty-bomber#assets-and-attribution) from [opengameart.org](https://opengameart.org/).
 
 ### My Motivation
 I saw a post on reddit by [@rgripper](https://github.com/rgripper) looking for someone to help with a project using bevy engine. I got in touch with him and started working on it with learning by doing.
