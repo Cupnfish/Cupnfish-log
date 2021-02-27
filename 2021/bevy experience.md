@@ -20,7 +20,7 @@ Here is my specs:
 Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz   2.81 GHz
 RAM	16.0 GB
 ```
-When the `dynamic` feature is enabled for compilation, each incremental compilation takes about 2.5 seconds. After adding other large dependencies, such as bevy_rapier, the incremental compilation speed will become longer, but still within acceptable limits, about 3.5 seconds. Five seconds is an acceptable amount for me to do a development iteration. During this development, the experience was great in terms of compile speed.
+When the `dynamic` feature is enabled, each incremental compilation takes about 2.5 seconds. After adding other large dependencies, such as bevy_rapier, the incremental compilation speed will become longer, but still within acceptable limits, about 3.5 seconds. Five seconds is an acceptable amount for me to do a development iteration. During this development, the experience was great in terms of compile speed.
 
 So how do you build a development environment that compiles quickly?
 
