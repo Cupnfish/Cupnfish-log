@@ -1,22 +1,21 @@
 ### Foreword
-[Rusty BomberMan](https://github.com/rgripper/rusty-bomber) is a bevy of the famous `BomberMan` game. Although it is a remake version, it actually looks completely different from the original game. The reason is that the art resources of the original game are not available, so we found [some art resources](https://github.com/rgripper/rusty-bomber#assets-and-attribution) form [opengameart.org](https://opengameart.org/). Thank you very much for these resources.
+[Rusty BomberMan](https://github.com/rgripper/rusty-bomber) is a clone of the famous `BomberMan` game. It only remotely resembles original game and uses some nice open source assets [some art resources](https://github.com/rgripper/rusty-bomber#assets-and-attribution) from [opengameart.org](https://opengameart.org/).
 
 ### Motivation for development
-The reason for developing this game was that I was visiting reddit , and I saw a post by [@rgripper](https://github.com/rgripper) looking for someone to work on the bevy project together. I got in touch with him and started working on it with a mindset of learning and doing.
+I saw a post on reddit by [@rgripper](https://github.com/rgripper) looking for someone to help with a project using bevy engine. I got in touch with him and started working on it with learning by doing.
 
-### Rust development environment recommendation
+### Rust dev environment
 
-Use the latest version of Rust in development (recommended nightly version , this seems to be useful for quick compilation).
-
-The development environment recommends `vscode` + [`rust-analyzer`](https://github.com/rust-analyzer/rust-analyzer) (install the latest release, I prefer to download source code and compile it myself.) + [`Tabline`](https://www.tabnine.com/) (optional) , or `Clion` + [`IntelliJ Rust`](https://www.jetbrains.com/rust/). 
+We used the latest version of Rust (Bevy docs recommended the nightly version, which enables much faster compilation).
+I coded in `vscode` + [`rust-analyzer`](https://github.com/rust-analyzer/rust-analyzer) (the latest release, I prefer to download source code and compile myself) + [`Tabline`](https://www.tabnine.com/) (optional) , alternatively you can use `Clion` + [`IntelliJ Rust`](https://www.jetbrains.com/rust/). 
 
 ### Compile speed
 
-Bevy’s web site mentions that the compilation is very fast.  And when version 0.4 was released, incremental compilation was much faster thanks to the dynamically linked feature, but it required a number of configurations.
+Bevy’s web site mentions that the compilation is very fast.  And when version 0.4 was released, incremental compilation was even faster thanks to the dynamically linked feature, but it required a some extra configuration.
 
-The compilation speed of rust itself isn't fast, or even annoying at times, but during the bevy development iteration, each incremental build is within acceptable limits if you have a well-configured development environment for fast compilation.
+The compilation speed for Rust so far is in no way impressive, even annoying at times. But when working with Bevy, each incremental build is within acceptable limits if you have a decent laptop.
 
-The configuration of my laptop is:
+Here is my specs:
 ```
 Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz   2.81 GHz
 RAM	16.0 GB
