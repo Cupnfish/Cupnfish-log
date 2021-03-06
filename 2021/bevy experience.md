@@ -74,18 +74,22 @@ Common filters are `With<T>` , `Without<T>` , `Added<T>` , `Changed<T>` , `Mutat
 ```rust
     Query<(&Transform,&Speed),Or<(With<Player>,With<Creature>)>>
 ```
-  // TODO: from here and below
-When a query has more than one component, it is necessary to use parentheses to pass more than one component as a tuple. Likewise, many filters pass parameters as tuples. Using `Or`, of course, is often used with `Option`, such as querying both the position and speed of the player and the creature, as well as the player specific component, the player’s power, you can write the query as follows:
+  
+When a query has more than one component, it is necessary to use parentheses to pass the components in a tuple. 
+
+// TODO: Not clear what is meant here
+Likewise, many filters pass parameters as tuples. `Or` often comes with `Option`, such as querying both the position and speed of the player and the creature, as well as the player-specific component, the player’s power, you can write the query as follows:
 
 ```rust
     Query<(&Transform,&Speed,Option<&PlayerPower>),Or<(With<Player>,With<Creature>)>>
 ```
 
+// TODO: do  we have to explain that thisng below or it is obvious. If not obvious, provide another example with checking for Some
 The resulting query with `Some(PlayerPower)` is definitely a `Player`, so treat it in the usual rust-like manner.
 
 ### QuerySet
 
-When queries in a `system` conflict with each other, a compiled run triggers a panic: `xxx has conflicting queries`. That’s where `QuerySet` comes in.
+When queries in a `system` conflict with each other, they cause a panic: `xxx has conflicting queries`. That’s where `QuerySet` is handy.
 
 For example, here are two queries:
 
@@ -94,18 +98,16 @@ For example, here are two queries:
     q1: Query<&Transform, Or<(With<Point>, With<Head>)>>,
 ```
 
-Both `Transform` and `Point` are queried, and `q1` contains the result of `q0`, but since `&mut` occur only once in the component of the query, there are no `&` other than `&mut`, so there is no conflict between the two queries.
+Both `Transform` and `Point` are queried, and `q1` contains the result of `q0`. But since `&mut` occur only once in the component of the query, there are no `&` other than `&mut`, so there is no conflict between the two queries.
 
-Take a look at the following two queries:
+Now take a look at the other two queries:
 
 ```rust
     mut q0: Query<(&mut Transform, &Point)>,
     q1: Query<&Transform, Or<(With<Point>, With<Head>)>>,
 ```
 
-Similar to the example above, but the difference is that the `Transform` component has one with `&mut` and the other with `&`, this is where a query conflict occurs.
-
-After query conflicts, that’s where `QuerySet` comes in.
+Here the first `Transform` component is declared with a `&mut` and in another - with `&`. This is where a query conflict occurs. To fix that we use `QuerySet`.
 
 Consider the following two components:
 
@@ -117,7 +119,7 @@ pub struct Point {
 }
 ```
 
-Suppose we need to write a system in which the position of each point changes according to the position of the previous entity:
+Suppose we need to write a system in which the position of each point changes in sync with the position of the previous entity:
 
 ```rust
 fn position(
@@ -129,8 +131,7 @@ fn position(
 ```
 
 We didn’t even implement any functionality for the system, and adding it directly to the App would have triggered query conflicts.
-
-Replace the above query with `QuerySet`:
+Now we replace the above query with `QuerySet`:
 
 ```rust
 fn position(
@@ -145,7 +146,7 @@ fn position(
 
 If you add it to the App without implementing anything, it will work. It’s also very easy to use, just pass the previous query as a tuple to `QuerSet` as a generic.
 
-What about the implementation? Without `QuerySet`, our implementation would look something like this:
+Without `QuerySet` our implementation would look like this:
 
 ```rust
 fn position(
@@ -162,7 +163,7 @@ fn position(
 }
 ```
 
-So with `QuerySet`, our content should look something like this:
+And with `QuerySet`:
 
 ```rust
 fn position(
@@ -183,7 +184,9 @@ fn position(
 }
 ```
 
-Before we run our code, `rust-analyzer` reported an error. We passed the `&mut points_query` in `q0_mut()` , and according to the borrowing check, the pointer of `points_query` can no longer be borrowed, so here we need to use unsafe. But before we use `unsafe`, we should make sure that our `unsafe` call is safe.
+// TODO: from here and below
+
+Before we run our code, `rust-analyzer` reported an error. We passed the `&mut points_query` in `q0_mut()` , and according to the borrowing check, the pointer of `points_query` can no longer be borrowed, so here we need to use `unsafe`. But before that we should make sure that our `unsafe` call is actually safe.
 
 Looking at the documentation for the `iter_unsafe()` we'll be calling, you can see the `Safety` hint:
 
