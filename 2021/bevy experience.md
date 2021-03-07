@@ -77,8 +77,7 @@ Common filters are `With<T>` , `Without<T>` , `Added<T>` , `Changed<T>` , `Mutat
   
 When a query has more than one component, it is necessary to use parentheses to pass the components in a tuple. 
 
-// TODO: Not clear what is meant here
-Likewise, when a query has more than one filter, it is also necessary to use parentheses to pass the fitlter in a tuple.
+Likewise, when a query has more than one filter, it is also necessary to use parentheses to pass the filter in a tuple.
 
 When used with `Or`, it is usually used with `Option`. Such as querying both the position and speed of the player and the creature, as well as the player-specific component, the player’s power, you can write the query as follows:
 
@@ -258,8 +257,6 @@ pub fn game_events_handle(
     }
 }
 ```
-
-// TODO: This sentense is possibly not that interesting to know and can be dropped entirely
 
 ### `system` chaining and code reuse
 
