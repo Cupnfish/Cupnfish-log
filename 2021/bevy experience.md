@@ -1,33 +1,32 @@
 ### Foreword
-[Rusty BomberMan](https://github.com/rgripper/rusty-bomber) is a bevy of the famous `BomberMan` game. Although it is a remake version, it actually looks completely different from the original game. The reason is that the art resources of the original game are not available, so we found [some art resources](https://github.com/rgripper/rusty-bomber#assets-and-attribution) form [opengameart.org](https://opengameart.org/). Thank you very much for these resources.
+[Rusty Bomber](https://github.com/rgripper/rusty-bomber) is a clone of the famous `BomberMan` game. It only remotely resembles original game and uses some nice open source assets [some art resources](https://github.com/rgripper/rusty-bomber#assets-and-attribution) from [opengameart.org](https://opengameart.org/).
 
-### Motivation for development
-The reason for developing this game was that I was visiting reddit , and I saw a post by [@rgripper](https://github.com/rgripper) looking for someone to work on the bevy project together. I got in touch with him and started working on it with a mindset of learning and doing.
+### Motivation
+I saw a post on reddit by [@rgripper](https://github.com/rgripper) looking for someone to help with a project using bevy engine. I got in touch with him and started working on it with learning by doing.
 
-### Rust development environment recommendation
+### Rust dev environment
 
-Use the latest version of Rust in development (recommended nightly version , this seems to be useful for quick compilation).
+We used the latest version of Rust (Bevy docs recommended the nightly version, which enables much faster compilation).
+I coded in `vscode` + [`rust-analyzer`](https://github.com/rust-analyzer/rust-analyzer) (the latest release, I prefer to download source code and compile myself) + [`Tabline`](https://www.tabnine.com/) (optional) , alternatively you can use `Clion` + [`IntelliJ Rust`](https://www.jetbrains.com/rust/). 
 
-The development environment recommends `vscode` + [`rust-analyzer`](https://github.com/rust-analyzer/rust-analyzer) (install the latest release, I prefer to download source code and compile it myself.) + [`Tabline`](https://www.tabnine.com/) (optional) , or `Clion` + [`IntelliJ Rust`](https://www.jetbrains.com/rust/). 
+### Compilation
 
-### Compile speed
+Bevy’s web site mentions that the compilation is very fast.  And when version 0.4 was released, incremental compilation was even faster thanks to the dynamically linked feature, but it required a some extra configuration.
 
-Bevy’s web site mentions that the compilation is very fast.  And when version 0.4 was released, incremental compilation was much faster thanks to the dynamically linked feature, but it required a number of configurations.
+The compilation speed for Rust so far is in no way impressive, even annoying at times. But when working with Bevy, each incremental build is within acceptable limits if you have a decent laptop.
 
-The compilation speed of rust itself isn't fast, or even annoying at times, but during the bevy development iteration, each incremental build is within acceptable limits if you have a well-configured development environment for fast compilation.
-
-The configuration of my laptop is:
+Here is my specs:
 ```
 Intel(R) Core(TM) i5-8400 CPU @ 2.80GHz   2.81 GHz
 RAM	16.0 GB
 ```
-When the `dynamic` feature is enabled for compilation, each incremental compilation takes about 2.5 seconds. After adding other large dependencies, such as bevy_rapier, the incremental compilation speed will become longer, but still within acceptable limits, about 3.5 seconds. Five seconds is an acceptable amount for me to do a development iteration. During this development, the experience was great in terms of compile speed.
+When the `dynamic` feature is enabled, each incremental compilation takes about 2.5 seconds. After adding other large dependencies, such as bevy_rapier, the incremental compilation speed will become longer, but still within acceptable limits, about 3.5 seconds. Five seconds is an acceptable amount for me to do a development iteration. During this development, the experience was great in terms of compile speed.
 
 So how do you build a development environment that compiles quickly?
 
-The site explains in detail how to set up a fast development environment: https://bevyengine.org/learn/book/getting-started/setup/(in the final section, Enable Fast Compiles (Optional))
+Here is a detailed explanation: https://bevyengine.org/learn/book/getting-started/setup/ (in the final section, Enable Fast Compiles (Optional))
 
-There may be some strange questions in setting up the environment, such as this:
+You may stumble upon this puzzling error:
 
 ```shell
 error: process didn't exit successfully: `target\debug\bevy_salamanders.exe` (exit code: 0xc0000139, STATUS_ENTRYPOINT_NOT_FOUND)
@@ -46,11 +45,11 @@ linker = "rust-lld.exe"
 rustflags = ["-Zshare-generics=off"]
 ```
 
-After the change if there are similar strange mistakes, you can try to delete directly `.cargo` this folder , using only `dynamic` feature, dynamic links to compile speed is much greater than switching linker. And any other weird, unresolved issues, then you can submit an issue.
+If it doesn't help, try deleting `.cargo` folder and using only `dynamic` feature. But dynamic links are slower than a switching linker. For other problems I suggest you go to Bevy's official Discord channel or can submit an issue.
 
-### Query filter
+### Query filters
 
-Bevy has a number of query filters built in, and the 0.4 update has made it easier to use and read.
+Bevy has a number of query filters built-in, and the 0.4 update is event easier to use and read.
 
 Here’s how it works:
 
@@ -68,25 +67,29 @@ fn movement_system(
 }
 ```
 
-You can see the general usage [here](https://bevy-cheatbook.github.io/basics/queries.html#query-filters).
+There are some basic examples [here](https://bevy-cheatbook.github.io/basics/queries.html#query-filters).
 
-Common filters are `With<T>` , `Without<T>` , `Added<T>` , `Changed<T>` , `Mutated<T>` , `Or<T>` , where `Mutated` is a collection of `Added` and `Changed`, and `Added` only queries for newly added components, changed to query only `Changed` components in existing components, `Or` is more special, the use of several other filters are basically to reduce the scope of the query, but using `Or` can expand the scope of filtering, for example, to query the location and speed of players and creatures, you can define the query as:
+Common filters are `With<T>` , `Without<T>` , `Added<T>` , `Changed<T>` , `Mutated<T>` , `Or<T>` . `Added` only queries for newly added components, `Changed` is only for changes in existing components. `Mutated` is simply a mix of `Added` and `Changed`. `Or` is more special, and is used with other filters to reduce the scope of the query, but using `Or` can expand the scope of filtering. For example, to query the location and speed of players and creatures, you can define the query as:
 
 ```rust
     Query<(&Transform,&Speed),Or<(With<Player>,With<Creature>)>>
 ```
+  
+When a query has more than one component, it is necessary to use parentheses to pass the components in a tuple. 
 
-When a query has more than one component, it is necessary to use parentheses to pass more than one component as a tuple. Likewise, many filters pass parameters as tuples. Using `Or`, of course, is often used with `Option`, such as querying both the position and speed of the player and the creature, as well as the player specific component, the player’s power, you can write the query as follows:
+// TODO: Not clear what is meant here
+Likewise, many filters pass parameters as tuples. `Or` often comes with `Option`, such as querying both the position and speed of the player and the creature, as well as the player-specific component, the player’s power, you can write the query as follows:
 
 ```rust
     Query<(&Transform,&Speed,Option<&PlayerPower>),Or<(With<Player>,With<Creature>)>>
 ```
 
+// TODO: do  we have to explain that thisng below or it is obvious. If not obvious, provide another example with checking for Some
 The resulting query with `Some(PlayerPower)` is definitely a `Player`, so treat it in the usual rust-like manner.
 
 ### QuerySet
 
-When queries in a `system` conflict with each other, a compiled run triggers a panic: `xxx has conflicting queries`. That’s where `QuerySet` comes in.
+When queries in a `system` conflict with each other, they cause a panic: `xxx has conflicting queries`. That’s where `QuerySet` is handy.
 
 For example, here are two queries:
 
@@ -95,18 +98,16 @@ For example, here are two queries:
     q1: Query<&Transform, Or<(With<Point>, With<Head>)>>,
 ```
 
-Both `Transform` and `Point` are queried, and `q1` contains the result of `q0`, but since `&mut` occur only once in the component of the query, there are no `&` other than `&mut`, so there is no conflict between the two queries.
+Both `Transform` and `Point` are queried, and `q1` contains the result of `q0`. But since `&mut` occur only once in the component of the query, there are no `&` other than `&mut`, so there is no conflict between the two queries.
 
-Take a look at the following two queries:
+Now take a look at the other two queries:
 
 ```rust
     mut q0: Query<(&mut Transform, &Point)>,
     q1: Query<&Transform, Or<(With<Point>, With<Head>)>>,
 ```
 
-Similar to the example above, but the difference is that the `Transform` component has one with `&mut` and the other with `&`, this is where a query conflict occurs.
-
-After query conflicts, that’s where `QuerySet` comes in.
+Here the first `Transform` component is declared with a `&mut` and in another - with `&`. This is where a query conflict occurs. To fix that we use `QuerySet`.
 
 Consider the following two components:
 
@@ -118,7 +119,7 @@ pub struct Point {
 }
 ```
 
-Suppose we need to write a system in which the position of each point changes according to the position of the previous entity:
+Suppose we need to write a system in which the position of each point changes in sync with the position of the previous entity:
 
 ```rust
 fn position(
@@ -130,8 +131,7 @@ fn position(
 ```
 
 We didn’t even implement any functionality for the system, and adding it directly to the App would have triggered query conflicts.
-
-Replace the above query with `QuerySet`:
+Now we replace the above query with `QuerySet`:
 
 ```rust
 fn position(
@@ -146,7 +146,7 @@ fn position(
 
 If you add it to the App without implementing anything, it will work. It’s also very easy to use, just pass the previous query as a tuple to `QuerSet` as a generic.
 
-What about the implementation? Without `QuerySet`, our implementation would look something like this:
+Without `QuerySet` our implementation would look like this:
 
 ```rust
 fn position(
@@ -163,7 +163,7 @@ fn position(
 }
 ```
 
-So with `QuerySet`, our content should look something like this:
+And with `QuerySet`:
 
 ```rust
 fn position(
@@ -178,21 +178,21 @@ fn position(
                 pre_transform.translation - Vec3::new(1.0, 1.0, 0.0) * 30.0,
             )
         } else {
-            warn!("Not find right transform!");
+            warn!("Not the right transform!");
         }
     }  
 }
 ```
 
-Before we run our code, `rust-analyzer` reported an error. We passed the `&mut points_query` in `q0_mut()` , and according to the borrowing check, the pointer of `points_query` can no longer be borrowed, so here we need to use unsafe. But before we use `unsafe`, we should make sure that our `unsafe` call is safe.
+Before we run our code, `rust-analyzer` reported an error. We passed the `&mut points_query` in `q0_mut()` , and according to the borrowing check, the pointer of `points_query` can no longer be borrowed, so here we need to use `unsafe`. But before that we should make sure that our `unsafe` call is actually safe.
 
 Looking at the documentation for the `iter_unsafe()` we'll be calling, you can see the `Safety` hint:
 
 > This allows aliased mutability. You must make sure this call does not result in multiple mutable references to the same component
 
-After analyzing our query, we were able to make sure this call does not result in multiple mutable references to the same component, so calling the unsafe function here is safe!
+We are sure and the code is safe!
 
-After adding unsafe, our code looks like this:
+Now our code looks like this:
 
 ```rust
 fn position(
@@ -208,19 +208,19 @@ fn position(
                 pre_transform.translation - Vec3::new(1.0, 1.0, 0.0) * 30.0,
             )
         } else {
-            warn!("not find right transform!");
+            warn!("Not the right transform!");
         }
     }
 }
 ```
 
-Once you resolve the borrowing error reported by `rust-analyzer`, run our `App` again, and you’ll get what you want.
+Once you resolve the borrowing error reported by `rust-analyzer`, run our `App` again, and you’ll get what you want. // TODO: whar did we want to get? sentense needs rephrasing
 
 Talking about the `QuerySet` experience, since `rust-analyzer` wasn’t very friendly to the API support generated by process macros, the code complement experience for macro-generated API was pretty bad. Of course it's not the API's problem, it's our IDE ecology problem, lol.
 
 ### Events
 
-The 0.4 bevy event has one major drawback, as shown in the following example:
+In Bevy 0.4 the `EventReader` is not a real iterator and requires an event reference when calling `iter()`:
 
 ```rust
 pub fn game_events_handle(
@@ -235,9 +235,7 @@ pub fn game_events_handle(
 }
 ```
 
-The `EventReader` is not a real iterator and needs to pass a event reference when calling `iter()` , which feels redundant during use.
-
-Fortunately, `EventReader` has been improved in the upcoming 0.5 release, and after this [PR](https://github.com/bevyengine/bevy/pull/1244) merge, the `EventReader` call has gone like this:
+Fortunately, in the upcoming 0.5 release (after this [PR](https://github.com/bevyengine/bevy/pull/1244)) `iter` call will not need any arguments:
 
 ```rust
 pub fn game_events_handle(
@@ -251,6 +249,7 @@ pub fn game_events_handle(
 }
 ```
 
+// TODO: This sentense is possibly not that interesting to know and can be dropped entirely
 It is important to note that not only has `EventReader` become a higher-level API (that is, a real system parameter) , but `Events` become a higher-level API, eliminating the need for a layer of `ResMut` on the outside.
 
 ### `system` chaining and code reuse
@@ -264,8 +263,8 @@ pub fn game_events_handle(
     ...
 }
 ```
-
-It has a `Result` return value, and if you add the system directly to the `App`, it will be reported as an error by `rust-analyzer` because bevy does not support systems with a return value. So how do you add a system with a return value to the `App`? To get rid of its return value, bevy provides us with a `fn chain(self, system: SystemB)` function that calls something like this:
+// TODO: from here and below
+Its return value is a `Result`, and if you add the system directly to the `App`, it will be reported as an error by `rust-analyzer` because bevy does not support systems with a return value. So how do you add a system with a return value to the `App`? To get rid of its return value, bevy provides us with a `fn chain(self, system: SystemB)` function that calls something like this:
 
 ```rust
     .add_system(game_events_handle.system().chain(error_handler.system()))
@@ -565,9 +564,8 @@ fn main() {
 
 ### Last part
 
-Many thanks to Rapier author [@Sébastien Crozet](https://github.com/sebcrozet), I’m using the physics engine for the first time, and there are a lot of things I don’t understand that I’ve heard back from people in the discord group.
+Many thanks to Rapier author [@Sébastien Crozet](https://github.com/sebcrozet). I’m using the physics engine for the first time, and there are a lot of things I don’t understand that were kindly provided by people in the discord group.
 
-I would also like to thank my partner [@rgripper](https://github.com/rgripper). Without our cooperation, this project would not have been possible.
-
-I enjoyed developing with my partner and we learned a lot together on this project. If you want to learn about Bevy through practice, then join us and we welcome you to work with us on our next game.
+I would also like to thank my coding buddy [@rgripper](https://github.com/rgripper). Without our cooperation, this project would not have been possible.
+I enjoyed coding with him and we learned a lot together on this project. If you want to learn about Bevy through practice, feel free to contact us and maybe we code our next game with you.
 
