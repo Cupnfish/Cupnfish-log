@@ -384,6 +384,8 @@ Building the game state typically consists of these:
 
 Let’s talk about step three, which will probably be replaced by a [new scheduler](https://github.com/bevyengine/bevy/pull/1144) in later versions, but that’s far away in the future, and until then we need new blogs. // TODO: what is meant by new blogs - do we write new blogs, or do we wait till someone writes blogs on the issue?
 
+// TODO: from here and below
+
 ### Rapier
 
 `Rapier` is a very rich physical engine, and the content of this project is only a small part of it, and this article has only selected some meaningful records from it. If you want to learn more about `rapier`, my advice is to read the [official documentation](https://rapier.rs/docs/user_guides/rust/getting_started) first and then go to the `bevy_rapier` group in [discord](https://discord.gg/VuvMUaxh) to learn more.
