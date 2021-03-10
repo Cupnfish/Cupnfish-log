@@ -269,14 +269,14 @@ pub fn game_events_handle(
     ...
 }
 ```
-// TODO: from here and below
-Its return value is a `Result`, and if you add the system directly to the `App`, it will be reported as an error by `rust-analyzer` because bevy does not support systems with a return value. So how do you add a system with a return value to the `App`? To get rid of its return value, bevy provides us with a `fn chain(self, system: SystemB)` function that calls something like this:
+
+Its return value is a `Result` and if you add the system directly to the `App`, it will be reported as an error by `rust-analyzer`. That's because bevy does not support systems with a return value. So how do you add a system with a return value to the `App`? Bevy provides us with a `fn chain(self, system: SystemB)` function that can be used like this:
 
 ```rust
     .add_system(game_events_handle.system().chain(error_handler.system()))
 ```
 
-It can be ‘Unlimited refills’ and you can go on forever if you want. How do you write a chain system? You can see [here](https://bevy-cheatbook.github.io/basics/system-chaining.html#system-chaining). In addition to the usage shown here, you can even use:
+You can chain as many systems as you like. Chaining is explained [here](https://bevy-cheatbook.github.io/basics/system-chaining.html#system-chaining). You can also do this:
 
 ```rust
 pub fn body_point_translation_handle(
@@ -287,15 +287,12 @@ pub fn body_point_translation_handle(
 }
 ```
 
-Yes, you can add new parameters to each chain node, which greatly increases code flexibility and code reuse. This is one of my favorite bevy features that is both practical and flexible. Although in this project not much use, basically used to do error handling, but I believe that in a large project, this function can fully play its advantages, it’s probably because bevy is full of ergonomics designed like this that everyone’s excited about it.
+Yes, you can also add new parameters to each chain node. This (// TODO: do you mean chaining or parameters?) is one of my favorite bevy features that is both practical and flexible.
+Asynchronous chains are also possible (look at this [PR](https://github.com/bevyengine/bevy/pull/1393)).
 
-Of course, the current system is not perfect, to deal with certain situations we will probably need an asynchronous chain, fortunately, now has the [PR](https://github.com/bevyengine/bevy/pull/1393).
+### Implementing game states
 
-### How to implement different states of  the game
-
-We implemented a complete game flow in our project, including a menu interface for starting the game, a pause inside the game, and a failure when a player is killed by a bomb or touched by a creature, and the victory when the player finds the entrance to the next level. If you have experienced our game, you will find that the level is not designed, but only to achieve the effects of various props in the game, including the first level and the second level of the difference is only a few more creature. As a game, I’m not happy with this implementation, but as an experience, as a learning bevy, I’ve learned a lot. I even kept a random level implementation interface, but didn’t actually implement it. I had no prior experience with Roguelike’s algorithms, and I was just hoping that the next project would improve on that.
-
-To get back to the point, in order to implement such a complete game flow, I refer to [`Kataster`](https://github.com/Bobox214/Kataster)’s code and put the whole game flow in the body of the `AppState` enumeration:
+We implemented a complete game flow in our project, including a menu UI for starting the game, a pause inside the game, and a Gave Over UI when the player is killed by a bomb or touched by a creature, and Victory UI when the player finds the entrance to the next level. This game has just enough features to help learn Bevy and does not really have proper levels or different enemies. To implement the game flow I referred to [`Kataster`](https://github.com/Bobox214/Kataster)’s code and put all the possible game states in the body of `AppState` enum:
 
 ```rust
 pub enum AppState {
@@ -304,9 +301,9 @@ pub enum AppState {
 }
 ```
 
-Building the state of a game typically requires the following four steps:
+Building the game state typically consists of these:
 
-1. Add our game state as a resource to the game:
+1. Add game state as a resource:
 
     ```rust
     app.add_resource(State::new(AppState::StartMenu))
@@ -324,7 +321,7 @@ Building the state of a game typically requires the following four steps:
    )
    ```
 
-3. Processing stage
+3. Handle different states
     ```rust
     // The code that links up the pre step
     .stage(APP_STATE_STAGE, |stage: &mut StateStage<AppState>| {
@@ -354,7 +351,7 @@ Building the state of a game typically requires the following four steps:
         });
     ```
 
-4. Handle game state transitions
+4. Map state machine transitions
 
     ```rust
     // In addition, build a system to handle the jump of game state
@@ -385,7 +382,7 @@ Building the state of a game typically requires the following four steps:
     }
     ```
 
-With these four steps, you can add different states to your game. Now let’s talk about step three, which will probably be replaced by a [new scheduler](https://github.com/bevyengine/bevy/pull/1144) in later versions, but that’s a long time away, until then, new blogs are needed.
+Let’s talk about step three, which will probably be replaced by a [new scheduler](https://github.com/bevyengine/bevy/pull/1144) in later versions, but that’s far away in the future, and until then we need new blogs. // TODO: what is meant by new blogs - do we write new blogs, or do we wait till someone writes blogs on the issue?
 
 ### Rapier
 
