@@ -478,10 +478,10 @@ With the physics engine successfully enabled in our game, we need to allow creat
         // After the interaction group is also set up, the collider is allowed to solve the collision under the rules of the group
         .collision_groups(InteractionGroups::new(WAY_GROUPS, NONE_GROUPS))
 ```
-// TODO: from here and below
-Before going any further into the difference between a solver group and a collision group, we need to understand the rules for constructing an interaction group. We need to provide two parameters for the interaction group's `new()`, the first of which is to specify which group the collider belongs to, the required parameter type is a `u16`, and the second parameter, which sets the collider and which groups of Colliders Will Interact, is also a `u16`.
 
-For the second parameter, it’s easy to understand how settings interact with a single collider, but how do they interact with multiple colliders? This is the beauty of setting the parameter type to `u16`, for example:
+Before going any further into the difference between a solver group and a collision group, we need to understand the rules for constructing an interaction group. We need two parameters for the interaction group's `new()`, the first (`u16`) - to specify which group the collider belongs to, and the second (`u16`) - the collider and which a groups of Colliders will interact.
+
+For the second parameter, it’s easy to understand how settings interact with a single collider, but how about multiple colliders? This is the beauty of setting the parameter type to `u16`, for example:
 
 ```rust
 const CREATURE_GROUPS: u16 = 0b0010;
@@ -491,9 +491,8 @@ const WAY_GROUPS: u16 = 0b1000;
 const NONE_GROUPS: u16 = 0b0000;
 ```
 
-The constant is the interaction group variable used in our game, and `0b0011` is represent the `CREATURE` and `PLAYER`, and the number is created using`CREATURE_GROUPS` and `PLAYER_GROUPS` through `&` .
-
-As for the difference between the solution group and the collision group, the solution group is to solve the force situation, and the interaction group will participate in the force solution. The collision group manages collision events, which can be received and processed through `Res<eventqueue>`.
+// TODO: is "force solution" and actual term in physical engines?
+Solution group is to solve the force situation, and interaction group will participate in the force solution. The collision group manages collision events, which can be received and processed through `Res<eventqueue>`.
 
 And `user_data`, which is passed into the collider builder when the collider is inserted, can be used to obtain the entity using the following method:
 
@@ -503,9 +502,9 @@ let entity = Entity::from_bits(user_data as u64);
 
 Where does `user_data` come from? From the collision event we get an index that can be accessed via the `Res<ColliderSet>` 's `get()` method user, which is cumbersome and I think the least usable part of `bevy_rapier` so far.
 
-In addition, if you run your game from here, you’ll find that your character, as well as the other dynamic rigid bodies in the screen, will receive a gravitational force , we don’t need this gravity, so we need to change the gravity to zero.
+In addition, if you run the game from here, you’ll find that your character, as well as the other dynamic rigid bodies on the screen, will receive a gravitational force. We don’t need this gravity, so we need to change it to zero.
 
-The current version modifies the gravity of the physical engine by adding a startup system like this:
+Ccurrent version modifies the gravity by adding a startup system like this:
 
 ```rust
 fn setup(
@@ -515,17 +514,15 @@ fn setup(
 }
 ```
 
-Adding this system to `startup_system()` requires only run once when game start-up.
+This system is added to `startup_system()`, and only run once.
 
 ### Multi-platform support
 
-Our game now supports WASM as well as normal desktop platforms, which is no shame since Bevy’s voice wasn’t supported and then wasn’t implemented. After finishing the game to play a little friends, are asking me if there is a mobile version. Bevy’s support plan includes mobile, and while there are few changes to be made to move from desktop to Mobile, before we get to the unsupported mobile, let’s see how we support WASM.
+Our game now runs on WASM as well as usual desktop platforms. Since Bevy’s doesn't support audio in WASM version there is no audio in our game. Bevy’s support platforms includes mobile, and while there are few changes to port to mobile, we decided to stick with WASM.
 
-Our game now supports WASM as well as normal desktop platforms, since Bevy’s wasn’t supported audio in WASM version and then we wasn’t implemented this in our game. Bevy’s support platforms includes mobile, and while there are few changes to be made to move from desktop to Mobile, before we talk about this, let’s see how we support WASM.
+The bevy rendering backend uses the WGPU, although the WGPU rendering backend supports WASM, for some reason it didn't work with Bevy, the bevy WASM project we have been able to refer to is basically based on `bevy_webgl2`.
 
-The bevy rendering backend uses the WGPU, although the WGPU rendering backend supports compiling to WASM, for some reason it’s not loaded on bevy, the bevy WASM project we have been able to refer to is basically based on `bevy_webgl2` this crate.
-
-It’s also convenient to add WASM support, but in addition to adding regular HTML files like other WASM project, you need to make the following changes:
+To support WASM you need to also put these:
 
 ```rust
     #[cfg(target_arch = "wasm32")]
@@ -557,21 +554,8 @@ web = [
 ]
 ```
 
-Basically this is set up, the rest of the settings are related to HTML, need a little lost knowledge of WASM development. How to use toolchains such as `cargo make` at compile time is also learned from the knowledge developed by WAMS. As for how to deploy to github’s page service, which I don’t know at all, this part of our game was deployed by my partner,`@rgripper` .
-
-For mobile support, Android, for example, if not touch ah, buttons and the like, the official example is actually given, on the basis of the desktop is very convenient to migrate. In addition to the basic android development environment (see [`cargo mobile`](https://github.com/BrainiumLLC/cargo-mobile)’s READEME for details in this section) , just make the following changes to support mobile, even if WGPU support for WASM is later fixed, only the following modifications should be required to support WASM:
-
-```rust
-#[bevy_main]
-fn main() {
-    App::build()
-        .insert_resource(Msaa { samples: 2 })
-        .add_plugins(DefaultPlugins)
-        .add_startup_system(setup.system())
-        .run();
-}
-```
-
+Supporting web requires tinkering with HTML, `cargo make` and we even used a js/wasm bundler to deploy on Github Pages.
+There are official examples for use on Android, (see [`cargo mobile`](https://github.com/BrainiumLLC/cargo-mobile)’s README for details).
 ### Last part
 
 Many thanks to Rapier author [@Sébastien Crozet](https://github.com/sebcrozet). I’m using the physics engine for the first time, and there are a lot of things I don’t understand that were kindly provided by people in the discord group.
