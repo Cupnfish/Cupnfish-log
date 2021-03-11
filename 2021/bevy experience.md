@@ -384,13 +384,13 @@ Building the game state typically consists of these:
 
 Let’s talk about step three, which will probably be replaced by a [new scheduler](https://github.com/bevyengine/bevy/pull/1144) in later versions, but that’s far away in the future, and until then we need new blogs. // TODO: what is meant by new blogs - do we write new blogs, or do we wait till someone writes blogs on the issue?
 
-// TODO: from here and below
+
 
 ### Rapier
 
-`Rapier` is a very rich physical engine, and the content of this project is only a small part of it, and this article has only selected some meaningful records from it. If you want to learn more about `rapier`, my advice is to read the [official documentation](https://rapier.rs/docs/user_guides/rust/getting_started) first and then go to the `bevy_rapier` group in [discord](https://discord.gg/VuvMUaxh) to learn more.
+`Rapier` is a powerful physics engine, and this project barely touched it. You can learn more about `rapier` in the [official documentation](https://rapier.rs/docs/user_guides/rust/getting_started) and in `bevy_rapier` group on [discord](https://discord.gg/VuvMUaxh) to learn more.
 
-Two common components of `Rapier` are the `RigidBody` and the `Collider`. Each entity in bevy can have only one rigid body, while a collider can have multiple, such as a character’s head, arms, and legs, all of which can be represented by a single collider.
+Two common components of `Rapier` are `RigidBody` and `Collider`. Each entity in Bevy can only have one rigid body, while a collider can have multiple, such as a character’s head, arms, and legs.
 
 The way to create a rigid body is simple:
 
@@ -408,9 +408,10 @@ RigidBodyBuilder::new_dynamic()
 .lock_translations()// (optional) lock the rigid body for translation
 ```
 
-> To create a `RigidBody`, you need to specify its location, because within `bevy_rapier` there is a system for transforming the `RigidBody`’s location and the entity’s `Transform`, which means we no longer need to manage the entity’s `Transform`, only through the rigid body to manage the entity’s speed, position, rotation, force, and so on.
+// TODO: this sentense needs to be split into a few small ones. I did not get what is meant here with `bevy_rapier` system ... RigidBody and Transform... which means we no longer... // Why do we no longer need to manage transform?
+> To create a `RigidBody`, you need to specify its location, because `bevy_rapier` has a system for transforming `RigidBody`’s location and the entity’s `Transform`, which means we no longer need to manage the entity’s `Transform`, only through the rigid body to manage the entity’s speed, position, rotation, force, and so on.
 
-The way to create colliders is also simple:
+Here we create a collider:
 
 ```rust
 // Rapier has a number of options, and since we only use two of them in our game projects, we’re only going to talk about these two categories
@@ -420,8 +421,10 @@ ColliderBuilder::cuboid(hx, hy)
 ColliderBuilder::ball(radius)
 ```
 
-> Note: the required parameters for building a cuboid collider are half height and half width, not full height and full width.
+> The parameters for building a cuboid collider are half height and half width, not full height and full width.
 
+
+// TODO: too many words repeated here. Please split into two sentenses.
 For a single collider, a rigid body and a collider can be directly inserted as a component into an existing entity(The method of adding multiple colliders to a rigid body is slightly different from the method of adding a single collider to a rigid body, see [here](https://github.com/dimforge/bevy_rapier/blob/master/bevy_rapier2d/examples/multiple_colliders2.rs).):
 
 ```rust
@@ -451,18 +454,20 @@ fn for_player_add_collision_detection(
 }
 ```
 
+// TODO: is "final loading" a technical term? maybe we can just start with "After all map resources are loaded...
 In our game, we use final loading, that is, after all map resources are loaded, we insert the corresponding rigid body and collider into the entity without rigid body and collision body.
 
-The last two filters, `Without<RigidBodyHandleComponent>`and `Without<ColliderHandleComponent>`, are actually because bevy has a system inside that transforms the `Builder` into a `HandleComponent`. When we insert the builder into the entity, the system then converts it into a handle component in some internal way. So in order to prevent our query results have been inserted in the handle component of the entity, so we need to add this filter.
+// TODO: hmmm, maybe too many details not many people would care about?
+The last two filters, `Without<RigidBodyHandleComponent>`and `Without<ColliderHandleComponent>`, are actually because Bevy has a system inside that transforms the `Builder` into a `HandleComponent`. When we insert the builder into the entity, the system then converts it into a handle component in some internal way. So in order to prevent our query results have been inserted in the handle component of the entity, so we need to add this filter.
 
-Adding these isn’t enough to get the physics engine running in our game, mainly because `bevy_rapier` is still being imported as an external crate, in the future, if `bevy_rapier` integrate into the bevy’s physical engine, you won’t need to do this:
+Adding these isn’t enough to get the physics engine running in our game, mainly because `bevy_rapier` is still being imported as an external crate. Right now you have to manually add this plugin:
 
 ```rust
     app
         .add_plugin(RapierPhysicsPlugin)
 ```
 
-With this simple setup, the physics engine was successfully enabled in our game. One thing in particular to note is that in our game, creatures can collide with each other, so how do we do that? Just Point to the solution group or collision group when creating the collider.
+With the physics engine successfully enabled in our game, we need to allow creatures collide with each other:
 
 ```rust
     ColliderBuilder::cuboid(HALF_TILE_WIDTH, HALF_TILE_WIDTH)
@@ -473,7 +478,7 @@ With this simple setup, the physics engine was successfully enabled in our game.
         // After the interaction group is also set up, the collider is allowed to solve the collision under the rules of the group
         .collision_groups(InteractionGroups::new(WAY_GROUPS, NONE_GROUPS))
 ```
-
+// TODO: from here and below
 Before going any further into the difference between a solver group and a collision group, we need to understand the rules for constructing an interaction group. We need to provide two parameters for the interaction group's `new()`, the first of which is to specify which group the collider belongs to, the required parameter type is a `u16`, and the second parameter, which sets the collider and which groups of Colliders Will Interact, is also a `u16`.
 
 For the second parameter, it’s easy to understand how settings interact with a single collider, but how do they interact with multiple colliders? This is the beauty of setting the parameter type to `u16`, for example:
