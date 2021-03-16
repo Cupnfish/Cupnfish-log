@@ -1,3 +1,16 @@
+- [Foreword](#foreword)
+- [Motivation](#motivation)
+- [Rust dev environment](#rust-dev-environment)
+- [Compilation](#compilation)
+- [Query filters](#query-filters)
+- [QuerySet](#queryset)
+- [Events](#events)
+- [`system` chaining and code reuse](#-system--chaining-and-code-reuse)
+- [Implementing game states](#implementing-game-states)
+- [Rapier](#rapier)
+- [Multi-platform support](#multi-platform-support)
+- [Last part](#last-part)
+
 ### Foreword
 [Rusty Bomber](https://github.com/rgripper/rusty-bomber) is a clone of the famous `BomberMan` game. It only remotely resembles original game and uses some nice open source assets [some art resources](https://github.com/rgripper/rusty-bomber#assets-and-attribution) from [opengameart.org](https://opengameart.org/).
 
@@ -45,7 +58,7 @@ linker = "rust-lld.exe"
 rustflags = ["-Zshare-generics=off"]
 ```
 
-If it doesn't help, try deleting `.cargo` folder and using only `dynamic` feature. But dynamic links are slower than a switching linker. For other problems I suggest you go to Bevy's official Discord channel or can submit an issue.
+If it doesn't help, try deleting `.cargo` folder and using only `dynamic` feature. Dynamic links are faster than switching a linker. For other problems I suggest you go to Bevy's official Discord channel or can submit an issue.
 
 ### Query filters
 
@@ -55,14 +68,14 @@ Here’s how it works:
 
 ```rust
 fn movement_system(
-    query:Query<(要查询的组件),(查询的过滤器)>，
+    query:Query<(/*Query components*/),(/*Query filter*/)>，
     mut example_query:Query<&mut Transform,With<Player>>
 ){
     for item in query.iter(){
-        // 对查询内容进行操作
+        // Operate on the query results
     }
     for mut transform in example_query.iter_mut() {
-        // 就和迭代器一样使用
+        // Just use it like an iterator
     }
 }
 ```
@@ -85,14 +98,13 @@ When used with `Or`, it is usually used with `Option`. Such as querying both the
     Query<(&Transform,&Speed,Option<&PlayerPower>),Or<(With<Player>,With<Creature>)>>
 ```
 
-// TODO: do  we have to explain that thisng below or it is obvious. If not obvious, provide another example with checking for Some
 The resulting query with `Some(PlayerPower)` is definitely a `Player`, so treat it in the usual rust-like manner.
 
 Example:
 ```rust
 for (transform,speed,power) in query.iter() {
     if power.is_some() {
-        // This means that the results of this query are Player.
+        // This means that the results of this iter belong Player.
     }
 }
 ```
@@ -288,7 +300,7 @@ pub fn body_point_translation_handle(
 }
 ```
 
-Yes, you can also add new parameters to each chain node. This (// TODO: do you mean chaining or parameters?) is one of my favorite bevy features that is both practical and flexible.
+Yes, you can also add new parameters to each chain node. This chaining is one of my favorite bevy features that is both practical and flexible.
 Asynchronous chains are also possible (look at this [PR](https://github.com/bevyengine/bevy/pull/1393)).
 
 ### Implementing game states
@@ -383,8 +395,7 @@ Building the game state typically consists of these:
     }
     ```
 
-Let’s talk about step three, which will probably be replaced by a [new scheduler](https://github.com/bevyengine/bevy/pull/1144) in later versions, but that’s far away in the future, and until then we need new blogs. // TODO: what is meant by new blogs - do we write new blogs, or do we wait till someone writes blogs on the issue?
-
+Let’s talk about step three, which will probably be replaced by a [new scheduler](https://github.com/bevyengine/bevy/pull/1144) in later versions, but that’s far away in the future, and until then, we need new blogs which someone will write about the issue. 
 
 
 ### Rapier
@@ -409,8 +420,17 @@ RigidBodyBuilder::new_dynamic()
 .lock_translations()// (optional) lock the rigid body for translation
 ```
 
-// TODO: this sentense needs to be split into a few small ones. I did not get what is meant here with `bevy_rapier` system ... RigidBody and Transform... which means we no longer... // Why do we no longer need to manage transform?
-> To create a `RigidBody`, you need to specify its location, because `bevy_rapier` has a system for transforming `RigidBody`’s location and the entity’s `Transform`, which means we no longer need to manage the entity’s `Transform`, only through the rigid body to manage the entity’s speed, position, rotation, force, and so on.
+To create a `RigidBody`, you need to specify its translation. Like this:
+
+```rust
+RigidBodyBuilder::new_dynamic()        
+.translation(translation_x, translation_y)
+...// more other operation  
+```
+
+Since `bevy_rapier` has a system for sync `RigidBody`’s transform(this is not a component, it's a rigidbody field) to the entity’s `Transform`(a bevy component). 
+
+Which means we no longer need to manage the entity’s `Transform`(bevy component), only through the rigidbody to manage the entity’s speed, position, rotation, force, and so on.
 
 Here we create a collider:
 
@@ -425,8 +445,9 @@ ColliderBuilder::ball(radius)
 > The parameters for building a cuboid collider are half height and half width, not full height and full width.
 
 
-// TODO: too many words repeated here. Please split into two sentenses.
-For a single collider, a rigid body and a collider can be directly inserted as a component into an existing entity(The method of adding multiple colliders to a rigid body is slightly different from the method of adding a single collider to a rigid body, see [here](https://github.com/dimforge/bevy_rapier/blob/master/bevy_rapier2d/examples/multiple_colliders2.rs).):
+For a single collider with a rigid body, they can be directly inserted as components into an existing entity.
+
+But for multiple colliders with a rigid body is slightly different, see [here](https://github.com/dimforge/bevy_rapier/blob/master/bevy_rapier2d/examples/multiple_colliders2.rs).
 
 ```rust
 fn for_player_add_collision_detection(
@@ -455,11 +476,7 @@ fn for_player_add_collision_detection(
 }
 ```
 
-// TODO: is "final loading" a technical term? maybe we can just start with "After all map resources are loaded...
-In our game, we use final loading, that is, after all map resources are loaded, we insert the corresponding rigid body and collider into the entity without rigid body and collision body.
-
-// TODO: hmmm, maybe too many details not many people would care about?
-The last two filters, `Without<RigidBodyHandleComponent>`and `Without<ColliderHandleComponent>`, are actually because Bevy has a system inside that transforms the `Builder` into a `HandleComponent`. When we insert the builder into the entity, the system then converts it into a handle component in some internal way. So in order to prevent our query results have been inserted in the handle component of the entity, so we need to add this filter.
+After all map resources are loaded, we insert the corresponding rigid body and collider into the entity without rigid body and collision body.
 
 Adding these isn’t enough to get the physics engine running in our game, mainly because `bevy_rapier` is still being imported as an external crate. Right now you have to manually add this plugin:
 
@@ -492,8 +509,11 @@ const WAY_GROUPS: u16 = 0b1000;
 const NONE_GROUPS: u16 = 0b0000;
 ```
 
-// TODO: is "force solution" and actual term in physical engines?
-Solution group is to solve the force situation, and interaction group will participate in the force solution. The collision group manages collision events, which can be received and processed through `Res<eventqueue>`.
+The difference between a solution group and a collision group: 
+
+If a group is a solution group, then it should participate in all force analysis; 
+
+If a group is a collision group, then it should participate in all collision events, these collision events are received and processed through `Res<eventqueue>`.
 
 And `user_data`, which is passed into the collider builder when the collider is inserted, can be used to obtain the entity using the following method:
 
@@ -563,4 +583,3 @@ Many thanks to Rapier author [@Sébastien Crozet](https://github.com/sebcrozet).
 
 I would also like to thank my coding buddy [@rgripper](https://github.com/rgripper). Without our cooperation, this project would not have been possible.
 I enjoyed coding with him and we learned a lot together on this project. If you want to learn about Bevy through practice, feel free to contact us and maybe we code our next game with you.
-
